@@ -1,34 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MasterBall Store
 
-## Getting Started
+Vietnamese-first storefront and operations console for a single-location TCG shop. The application covers catalog discovery, signed guest carts, checkout, COD/VNPAY payments, order lookup, inventory control, tournament announcements, and capability-based administration.
 
-First, run the development server:
+The visual identity uses an original ink-purple, magenta, steel, and cyan system. Do not add franchise artwork, characters, or marks unless the store can document its right to use them.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Quick start
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Prerequisites: Node.js 22, pnpm 9.14, and an isolated PostgreSQL database.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Install dependencies with `pnpm install`.
+2. Copy `.env.example` to `.env.local` and replace every value used by the feature you are running.
+3. Apply the generated schema with `pnpm db:migrate`. Production runs are blocked unless `MIGRATION_BACKUP_REFERENCE` identifies a verified backup.
+4. Set the one-time `OWNER_*` variables, run `pnpm bootstrap:owner`, then remove those variables.
+5. Start the site with `pnpm dev` and open `http://127.0.0.1:3100`.
 
-## Learn More
+Public staff registration is disabled. Never commit `.env.local`, database credentials, merchant secrets, or customer data.
 
-To learn more about Next.js, take a look at the following resources:
+## Verification
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The executable quality gates live in `package.json` and `.github/workflows/ci.yml`. Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` before review. Browser smoke tests use `pnpm test:e2e` after installing the Playwright Chromium runtime.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Database-backed integration and concurrency tests must target a disposable test database, never development or production data.
 
-## Deploy on Vercel
+## Project guidance
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Documentation map](docs/README.md)
+- [Architecture decisions](docs/decisions/architecture-decisions.md)
+- [Launch checklist](docs/operations/launch-checklist.md)
+- [Incident runbook](docs/operations/incident-runbook.md)
+- [Backup and restore](docs/operations/backup-restore.md)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The schema is owned by `src/db/schema/`, migrations by `drizzle/`, business rules by `src/modules/`, and HTTP/UI entry points by `src/app/`.
