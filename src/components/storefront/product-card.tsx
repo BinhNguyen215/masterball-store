@@ -4,8 +4,15 @@ import Link from "next/link";
 
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { ProductViewModel } from "@/components/storefront/storefront-types";
+import { getStorefrontCopy, type StorefrontLocale } from "@/i18n";
 
-export function ProductCard({ product }: { product: ProductViewModel }) {
+type ProductCardProps = {
+  locale: StorefrontLocale;
+  product: ProductViewModel;
+};
+
+export function ProductCard({ locale, product }: ProductCardProps) {
+  const copy = getStorefrontCopy(locale).catalog.card;
   const AvailabilityIcon = product.available ? CircleCheck : CircleOff;
 
   return (
@@ -13,7 +20,7 @@ export function ProductCard({ product }: { product: ProductViewModel }) {
       <div className="product-card-media">
         {product.image ? (
           <Image
-            alt={product.image.alt}
+            alt={product.image.alt || copy.imageAlt}
             fill
             sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
             src={product.image.src}
@@ -29,10 +36,10 @@ export function ProductCard({ product }: { product: ProductViewModel }) {
         <h2 className="product-card-title">
           <Link href={`/products/${product.slug}`}>{product.name}</Link>
         </h2>
-        <span className="price">{formatVnd(product.priceVnd)}</span>
+        <span className="price">{formatVnd(product.priceVnd, locale)}</span>
         <span className="availability">
           <AvailabilityIcon aria-hidden="true" size={16} strokeWidth={1.8} />
-          {product.available ? "Có thể đặt mua" : "Tạm hết hàng"}
+          {product.available ? copy.available : copy.outOfStock}
         </span>
       </div>
     </article>

@@ -118,6 +118,27 @@ test("the shared skip link is the first keyboard target", async ({ page }) => {
   await expect(page.locator("main#main-content")).toBeFocused();
 });
 
+test("the locale switcher writes a cookie that the server renders in", async ({
+  page,
+}) => {
+  await page.goto("/products");
+  const shell = page.locator(".site-shell");
+  const heading = page.getByRole("heading", { level: 1 });
+  await expect(shell).toHaveAttribute("lang", "vi");
+  await expect(heading).toHaveText(/Tìm đúng lá bài/);
+
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(shell).toHaveAttribute("lang", "en");
+  await expect(heading).toHaveText(/Find the right card/);
+
+  const cookies = await page.context().cookies();
+  expect(cookies.find((cookie) => cookie.name === "masterball_locale")?.value).toBe("en");
+
+  await page.getByRole("button", { name: "Tiếng Việt" }).click();
+  await expect(shell).toHaveAttribute("lang", "vi");
+  await expect(heading).toHaveText(/Tìm đúng lá bài/);
+});
+
 test("unauthenticated admin requests redirect to login", async ({ page }) => {
   const response = await page.goto("/admin/orders");
 

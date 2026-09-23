@@ -1,4 +1,5 @@
 import { ArrowRight, CalendarClock } from "lucide-react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -6,36 +7,49 @@ import { ButtonLink } from "@/components/storefront/button-link";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { loadStorefrontHome } from "@/components/storefront/storefront-data";
 import { TournamentCard } from "@/components/storefront/tournament-card";
-
-const categories = [
-  {
-    href: "/products?game=pokemon",
-    name: "Pokémon TCG",
-    note: "Booster, box và sản phẩm sealed",
-  },
-  {
-    href: "/products?game=riftbound",
-    name: "Riftbound TCG",
-    note: "Sản phẩm cho người chơi chiến thuật",
-  },
-  {
-    href: "/products?type=accessory",
-    name: "Phụ kiện",
-    note: "Sleeve, hộp bài và dụng cụ bảo quản",
-  },
-] as const;
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
 export const revalidate = 300;
 
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = getStorefrontCopy(await readStorefrontLocale()).home;
+  return {
+    title: { absolute: copy.metaTitle },
+    description: copy.metaDescription,
+    alternates: { canonical: "/" },
+  };
+}
+
 export default async function HomePage() {
-  const { configured, products, tournaments } = await loadStorefrontHome();
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).home;
+  const { configured, products, tournaments } = await loadStorefrontHome(locale);
+
+  const categories = [
+    {
+      href: "/products?game=pokemon",
+      name: copy.categoryPokemonName,
+      note: copy.categoryPokemonNote,
+    },
+    {
+      href: "/products?game=riftbound",
+      name: copy.categoryRiftboundName,
+      note: copy.categoryRiftboundNote,
+    },
+    {
+      href: "/products?type=accessory",
+      name: copy.categoryAccessoryName,
+      note: copy.categoryAccessoryNote,
+    },
+  ] as const;
 
   return (
     <>
       <section className="hero">
         <div className="hero-media">
           <Image
-            alt="Thẻ sưu tầm, gói bài và hộp đựng TCG dưới ánh sáng xanh tím"
+            alt={copy.heroImageAlt}
             fill
             priority
             sizes="100vw"
@@ -45,21 +59,23 @@ export default async function HomePage() {
         <div className="hero-content">
           <div className="hero-copy">
             <p className="hero-eyebrow" translate="no">
-              MasterBall Store
+              {copy.heroEyebrow}
             </p>
             <h1 className="hero-title">
-              Chọn đúng. <span>Chơi chất.</span>
+              {copy.heroTitleLead} <span>{copy.heroTitleAccent}</span>
+              <small>{copy.heroTitleSub}</small>
             </h1>
             <p className="hero-description">
-              Sản phẩm TCG và phụ kiện cho bộ sưu tập, bàn đấu và khoảnh khắc mở
-              pack của bạn.
+              {copy.heroDescription}
+              <br />
+              {copy.heroDescriptionEnglish}
             </p>
             <div className="hero-actions">
               <ButtonLink href="/products" icon={ArrowRight}>
-                Xem sản phẩm
+                {copy.heroShop}
               </ButtonLink>
               <ButtonLink href="/tournaments" variant="secondary">
-                Lịch giải đấu
+                {copy.heroEvents}
               </ButtonLink>
             </div>
             <span aria-hidden="true" className="capture-mark hero-capture" />
@@ -70,11 +86,8 @@ export default async function HomePage() {
       <section className="section">
         <div className="section-inner">
           <div className="section-heading">
-            <h2>Đi thẳng vào thế giới bạn chơi</h2>
-            <p>
-              Duyệt theo dòng TCG hoặc tìm phụ kiện phù hợp với cách bạn lưu trữ
-              và mang bộ bài.
-            </p>
+            <h2>{copy.categoriesTitle}</h2>
+            <p>{copy.categoriesDescription}</p>
           </div>
           <ul className="category-index">
             {categories.map((category) => (
@@ -93,18 +106,13 @@ export default async function HomePage() {
       <section className="section section--raised">
         <div className="section-inner">
           <div className="section-heading">
-            <h2>{products.length > 0 ? "Lựa chọn nổi bật" : "Sản phẩm đang được chuẩn bị"}</h2>
-            <p>
-              Khu vực này chỉ hiển thị mặt hàng đã xuất bản với giá và tồn kho
-              từ hệ thống cửa hàng.
-            </p>
+            <h2>
+              {products.length > 0 ? copy.featuredTitle : copy.featuredPreparingTitle}
+            </h2>
+            <p>{copy.featuredDescription}</p>
           </div>
           <ProductGrid
-            emptyDescription={
-              configured
-                ? "Catalog chưa có sản phẩm nổi bật đã xuất bản. Hãy quay lại sau khi cửa hàng cập nhật dữ liệu thật."
-                : "Catalog chưa được kết nối với cơ sở dữ liệu. Không có sản phẩm mẫu hay giá tạm được hiển thị."
-            }
+            emptyDescription={configured ? copy.featuredEmpty : copy.featuredUnconfigured}
             products={products}
           />
         </div>
@@ -114,21 +122,16 @@ export default async function HomePage() {
         <div className="section-inner tournament-empty-band">
           <div>
             <CalendarClock aria-hidden="true" size={32} strokeWidth={1.6} />
-            <h2>Hẹn nhau tại bàn đấu</h2>
+            <h2>{copy.eventsTitle}</h2>
           </div>
           {tournaments[0] ? (
             <TournamentCard tournament={tournaments[0]} />
           ) : (
             <div>
-              <p>
-                {configured
-                  ? "Chưa có giải đấu nào được xuất bản. Lịch mới sẽ xuất hiện tại đây sau khi cửa hàng xác nhận thời gian và địa điểm."
-                  : "Lịch giải đấu chưa được kết nối với cơ sở dữ liệu. Không có thời gian hay địa điểm mẫu được hiển thị."}
-              </p>
-              <Link className="text-link" href="/tournaments">
-                Xem trang giải đấu
-                <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-              </Link>
+              <p>{copy.eventsEmpty}</p>
+              <ButtonLink href="/tournaments" variant="secondary">
+                {copy.eventsLink}
+              </ButtonLink>
             </div>
           )}
         </div>

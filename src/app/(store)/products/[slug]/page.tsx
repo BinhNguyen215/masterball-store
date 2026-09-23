@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { ProductDetailView } from "@/components/storefront/product-detail-view";
 import { loadStorefrontProduct } from "@/components/storefront/storefront-data";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
 import { addProductVariantToCart } from "./actions";
 import { getProductCartMessage } from "./product-commerce";
@@ -13,12 +15,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { product } = await loadStorefrontProduct(slug);
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).product;
+  const { product } = await loadStorefrontProduct(slug, locale);
 
   if (!product) {
     return {
-      title: "Sản phẩm chưa sẵn sàng",
-      description: "Trang chi tiết sản phẩm của MasterBall Store.",
+      title: copy.unavailableTitle,
+      description: copy.metaDescription,
       robots: { follow: false, index: false },
     };
   }
@@ -42,7 +46,9 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
   const query = await searchParams;
-  const { configured, product } = await loadStorefrontProduct(slug);
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale);
+  const { configured, product } = await loadStorefrontProduct(slug, locale);
 
   if (configured && !product) {
     notFound();
@@ -77,13 +83,13 @@ export default async function ProductDetailPage({
                 {
                   "@type": "ListItem",
                   item: origin,
-                  name: "Trang chủ",
+                  name: copy.chrome.breadcrumb.home,
                   position: 1,
                 },
                 {
                   "@type": "ListItem",
                   item: `${origin}/products`,
-                  name: "Sản phẩm",
+                  name: copy.chrome.nav.products,
                   position: 2,
                 },
                 {
@@ -114,7 +120,7 @@ export default async function ProductDetailPage({
             ? addProductVariantToCart.bind(null, product.slug)
             : undefined
         }
-        cartMessage={getProductCartMessage(query)}
+        cartMessage={getProductCartMessage(query, copy.product)}
         product={product}
       />
     </>

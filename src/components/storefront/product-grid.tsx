@@ -3,22 +3,27 @@ import { PackageOpen } from "lucide-react";
 import { EmptyState } from "@/components/storefront/empty-state";
 import { ProductCard } from "@/components/storefront/product-card";
 import type { ProductViewModel } from "@/components/storefront/storefront-types";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
 type ProductGridProps = {
   emptyDescription?: string;
   products: ProductViewModel[];
 };
 
-export function ProductGrid({
-  emptyDescription = "Catalog chưa có sản phẩm đã xuất bản phù hợp. Hãy quay lại sau khi cửa hàng cập nhật dữ liệu thật.",
+export async function ProductGrid({
+  emptyDescription,
   products,
 }: ProductGridProps) {
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).catalog;
+
   if (products.length === 0) {
     return (
       <EmptyState
-        description={emptyDescription}
+        description={emptyDescription ?? copy.empty.description}
         icon={PackageOpen}
-        title="Chưa có sản phẩm"
+        title={copy.empty.title}
       />
     );
   }
@@ -27,7 +32,7 @@ export function ProductGrid({
     <ul className="product-grid">
       {products.map((product) => (
         <li key={product.slug}>
-          <ProductCard product={product} />
+          <ProductCard locale={locale} product={product} />
         </li>
       ))}
     </ul>

@@ -1,35 +1,35 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/storefront/brand-mark";
+import type { StorefrontCopy } from "@/i18n";
 
-const shopLinks = [
-  { href: "/products", label: "Sản phẩm" },
-  { href: "/tournaments", label: "Giải đấu" },
-  { href: "/cart", label: "Giỏ hàng" },
-] as const;
+import { StoreContact } from "./store-contact";
 
-const policyLinks = [
-  { href: "/policies/shipping", label: "Giao hàng" },
-  { href: "/policies/returns", label: "Đổi trả" },
-  { href: "/policies/privacy", label: "Quyền riêng tư" },
-  { href: "/policies/terms", label: "Điều khoản" },
-] as const;
+export function StoreFooter({ copy }: { copy: StorefrontCopy["chrome"] }) {
+  const shopLinks = [
+    { href: "/products", label: copy.nav.products },
+    { href: "/tournaments", label: copy.nav.tournaments },
+    { href: "/orders", label: copy.footer.orderLookup },
+    { href: "/cart", label: copy.footer.cart },
+  ];
+  const policyLinks = [
+    { href: "/policies/shipping", label: copy.footer.shipping },
+    { href: "/policies/returns", label: copy.footer.returns },
+    { href: "/policies/privacy", label: copy.footer.privacy },
+    { href: "/policies/terms", label: copy.footer.terms },
+  ];
 
-export function StoreFooter() {
   return (
     <footer className="site-footer">
       <div className="footer-inner">
         <div className="footer-grid">
           <div className="footer-intro">
             <BrandMark />
-            <p>
-              Không gian TCG dành cho người chơi, người sưu tầm và những buổi
-              gặp gỡ quanh bàn đấu.
-            </p>
+            <p>{copy.footer.brandLine}</p>
           </div>
-          <nav aria-label="Điều hướng cuối trang" className="footer-nav">
+          <nav aria-label={copy.footer.navAria} className="footer-nav">
             <div>
-              <h2>Cửa hàng</h2>
+              <h2>{copy.footer.shopHeading}</h2>
               <ul>
                 {shopLinks.map((link) => (
                   <li key={link.href}>
@@ -39,7 +39,7 @@ export function StoreFooter() {
               </ul>
             </div>
             <div>
-              <h2>Thông tin</h2>
+              <h2>{copy.footer.infoHeading}</h2>
               <ul>
                 {policyLinks.map((link) => (
                   <li key={link.href}>
@@ -49,10 +49,11 @@ export function StoreFooter() {
               </ul>
             </div>
           </nav>
+          <StoreContact copy={copy} />
         </div>
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} MasterBall Store</span>
-          <span>Thiết kế riêng cho cộng đồng TCG Việt Nam</span>
+          <span>{copy.footer.designedIn}</span>
         </div>
       </div>
     </footer>

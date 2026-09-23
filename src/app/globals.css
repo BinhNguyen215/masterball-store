@@ -204,6 +204,42 @@ p {
   display: none;
 }
 
+.locale-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.locale-switcher-icon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.locale-option {
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 0.15rem);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.locale-option:hover {
+  color: var(--text-primary);
+}
+
+.locale-option[aria-pressed="true"] {
+  background: var(--color-plasma);
+  color: var(--color-ink-1000);
+}
+
 .nav-list {
   display: flex;
   margin: 0;
@@ -646,6 +682,66 @@ p {
   gap: var(--space-6);
 }
 
+.payment-methods {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--color-border, #d5d8e2);
+  border-radius: 0.8rem;
+  overflow: hidden;
+}
+
+.payment-methods > legend {
+  padding: 0 0 0.6rem;
+}
+
+.payment-method {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--color-border, #d5d8e2);
+  cursor: pointer;
+}
+
+.payment-method:first-of-type {
+  border-top: 0;
+}
+
+.payment-method input {
+  flex: 0 0 auto;
+}
+
+.payment-method-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--color-border, #d5d8e2);
+  border-radius: 0.45rem;
+  font-size: 1.15rem;
+}
+
+.payment-method strong,
+.payment-method small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.payment-method small {
+  margin-top: 0.15rem;
+  color: var(--color-muted, #667085);
+  font-size: 0.78rem;
+}
+
+.payment-method--disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.payment-methods > .field-help {
+  padding: 0.75rem 1rem;
+}
+
 .filter-more {
   border-top: var(--border-width) solid var(--border-subtle);
   border-bottom: var(--border-width) solid var(--border-subtle);
@@ -730,6 +826,25 @@ p {
   margin: 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
+}
+
+.consent-field {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.consent-field input {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+}
+
+.consent-field a {
+  color: var(--color-plasma-strong);
+  font-weight: 700;
 }
 
 .catalog-results-header {

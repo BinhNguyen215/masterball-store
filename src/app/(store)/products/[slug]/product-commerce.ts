@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { StorefrontCopy } from "@/i18n";
+
 const addToCartSchema = z.object({
   quantity: z.coerce.number().int().min(1).max(99),
   variantId: z.string().uuid(),
@@ -27,21 +29,24 @@ export function getAddedCartQuantity(current: number, added: number): number {
   return quantity;
 }
 
-export function getProductCartMessage(input: {
-  cart?: string | string[];
-  error?: string | string[];
-}): { kind: "error" | "success"; text: string } | undefined {
+export function getProductCartMessage(
+  input: {
+    cart?: string | string[];
+    error?: string | string[];
+  },
+  copy: StorefrontCopy["product"],
+): { kind: "error" | "success"; text: string } | undefined {
   if (input.cart === "added") {
-    return { kind: "success", text: "Đã thêm sản phẩm vào giỏ hàng." };
+    return { kind: "success", text: copy.cartAdded };
   }
 
   const error = Array.isArray(input.error) ? input.error[0] : input.error;
   const messages: Record<string, string> = {
-    changed: "Giỏ hàng vừa được cập nhật ở yêu cầu khác. Vui lòng thử lại.",
-    invalid: "Phiên bản hoặc số lượng sản phẩm không hợp lệ.",
-    service: "Chưa thể cập nhật giỏ hàng lúc này. Vui lòng thử lại sau.",
-    stock: "Số lượng bạn chọn vượt quá tồn kho hiện tại.",
-    unavailable: "Phiên bản này hiện không còn được bán.",
+    changed: copy.cartErrorChanged,
+    invalid: copy.cartErrorInvalid,
+    service: copy.cartErrorService,
+    stock: copy.cartErrorStock,
+    unavailable: copy.cartErrorUnavailable,
   };
 
   return error && messages[error]

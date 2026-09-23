@@ -3,15 +3,17 @@ import Link from "next/link";
 
 import { formatVietnamDateTime } from "@/components/storefront/storefront-formatters";
 import type { TournamentViewModel } from "@/components/storefront/storefront-types";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
-const statusLabel = {
-  cancelled: "Đã hủy",
-  ended: "Đã kết thúc",
-  open: "Đang nhận thông tin quan tâm",
-  upcoming: "Sắp diễn ra",
-} as const;
+export async function TournamentCard({
+  tournament,
+}: {
+  tournament: TournamentViewModel;
+}) {
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).tournaments;
 
-export function TournamentCard({ tournament }: { tournament: TournamentViewModel }) {
   return (
     <article className="tournament-card">
       <div>
@@ -23,17 +25,17 @@ export function TournamentCard({ tournament }: { tournament: TournamentViewModel
       <dl className="tournament-meta">
         <div>
           <CalendarDays aria-hidden="true" size={18} strokeWidth={1.8} />
-          <dt className="sr-only">Thời gian</dt>
-          <dd>{formatVietnamDateTime(tournament.startsAt)}</dd>
+          <dt className="sr-only">{copy.fields.time}</dt>
+          <dd>{formatVietnamDateTime(tournament.startsAt, locale)}</dd>
         </div>
         <div>
           <MapPin aria-hidden="true" size={18} strokeWidth={1.8} />
-          <dt className="sr-only">Địa điểm</dt>
+          <dt className="sr-only">{copy.fields.venue}</dt>
           <dd>{tournament.location}</dd>
         </div>
         <div>
-          <dt>Trạng thái</dt>
-          <dd>{statusLabel[tournament.status]}</dd>
+          <dt>{copy.fields.status}</dt>
+          <dd>{copy.status[tournament.status]}</dd>
         </div>
       </dl>
     </article>

@@ -5,21 +5,26 @@ import { ButtonLink } from "@/components/storefront/button-link";
 import { EmptyState } from "@/components/storefront/empty-state";
 import { formatVietnamDateTime } from "@/components/storefront/storefront-formatters";
 import type { TournamentDetailViewModel } from "@/components/storefront/storefront-types";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
-export function TournamentDetailView({
+export async function TournamentDetailView({
   tournament,
 }: {
   tournament: TournamentDetailViewModel | null;
 }) {
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale);
+
   if (!tournament) {
     return (
       <div className="section-inner">
         <EmptyState
           actionHref="/tournaments"
-          actionLabel="Xem lịch giải đấu"
-          description="Thông báo này chưa được xuất bản hoặc dữ liệu giải đấu chưa được kết nối. Không có thời gian hay địa điểm tạm được hiển thị."
+          actionLabel={copy.tournaments.detail.unavailableAction}
+          description={copy.tournaments.detail.unavailableDescription}
           icon={CalendarX}
-          title="Thông báo chưa sẵn sàng"
+          title={copy.tournaments.detail.unavailableTitle}
         />
       </div>
     );
@@ -29,8 +34,8 @@ export function TournamentDetailView({
     <div className="detail-page section-inner">
       <Breadcrumb
         items={[
-          { href: "/", label: "Trang chủ" },
-          { href: "/tournaments", label: "Giải đấu" },
+          { href: "/", label: copy.chrome.breadcrumb.home },
+          { href: "/tournaments", label: copy.tournaments.breadcrumb },
           { label: tournament.title },
         ]}
       />
@@ -43,24 +48,26 @@ export function TournamentDetailView({
         <dl className="tournament-detail-meta">
           <div>
             <Clock3 aria-hidden="true" size={20} strokeWidth={1.8} />
-            <dt>Thời gian</dt>
-            <dd>{formatVietnamDateTime(tournament.startsAt)}</dd>
+            <dt>{copy.tournaments.fields.time}</dt>
+            <dd>{formatVietnamDateTime(tournament.startsAt, locale)}</dd>
           </div>
           <div>
             <MapPin aria-hidden="true" size={20} strokeWidth={1.8} />
-            <dt>Địa điểm</dt>
+            <dt>{copy.tournaments.fields.venue}</dt>
             <dd>{tournament.location}</dd>
           </div>
           {tournament.capacityLabel ? (
             <div>
               <UsersRound aria-hidden="true" size={20} strokeWidth={1.8} />
-              <dt>Sức chứa</dt>
+              <dt>{copy.tournaments.fields.capacity}</dt>
               <dd>{tournament.capacityLabel}</dd>
             </div>
           ) : null}
         </dl>
         <section aria-labelledby="tournament-rules-title" className="policy-content">
-          <h2 id="tournament-rules-title">Thể lệ</h2>
+          <h2 id="tournament-rules-title">
+            {copy.tournaments.detail.rulesHeading}
+          </h2>
           <ul>
             {tournament.rules.map((rule) => (
               <li key={rule}>{rule}</li>
@@ -68,7 +75,9 @@ export function TournamentDetailView({
           </ul>
         </section>
         {tournament.contactHref && tournament.contactLabel ? (
-          <ButtonLink href={tournament.contactHref}>{tournament.contactLabel}</ButtonLink>
+          <ButtonLink href={tournament.contactHref}>
+            {tournament.contactLabel}
+          </ButtonLink>
         ) : null}
       </article>
     </div>

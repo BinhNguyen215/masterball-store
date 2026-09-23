@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { loadStorefrontTournament } from "@/components/storefront/storefront-data";
 import { TournamentDetailView } from "@/components/storefront/tournament-detail-view";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
 export async function generateMetadata({
   params,
@@ -10,12 +12,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { tournament } = await loadStorefrontTournament(slug);
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).tournaments;
+  const { tournament } = await loadStorefrontTournament(slug, locale);
 
   if (!tournament) {
     return {
-      title: "Thông báo giải đấu chưa sẵn sàng",
-      description: "Thông tin giải đấu TCG từ MasterBall Store.",
+      title: copy.detail.metaTitle,
+      description: copy.detail.metaDescription,
       robots: { follow: false, index: false },
     };
   }
@@ -33,7 +37,8 @@ export default async function TournamentDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { configured, tournament } = await loadStorefrontTournament(slug);
+  const locale = await readStorefrontLocale();
+  const { configured, tournament } = await loadStorefrontTournament(slug, locale);
 
   if (configured && !tournament) {
     notFound();
