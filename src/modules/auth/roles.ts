@@ -23,7 +23,7 @@ export const CAPABILITIES = [
   "tournaments.write",
   "tournaments.publish",
   "settings.read",
-  "settings.write",
+  "jobs.run",
   "audit.read",
 ] as const;
 
@@ -49,6 +49,7 @@ export const ROLE_CAPABILITIES: Readonly<Record<AdminRole, ReadonlySet<Capabilit
     "orders.transition",
     "payments.read",
     "payments.reconcile",
+    "jobs.run",
     "audit.read",
   ]),
   EVENT_EDITOR: new Set([

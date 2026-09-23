@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { adminApplication, IntegrationUnavailableError } from "@/modules/auth/admin-application";
+import { adminApplication, IntegrationUnavailableError, scheduledJobSchema } from "@/modules/auth/admin-application";
 import { authorize, AuthorizationError } from "@/modules/auth/guards";
 import {
   inventoryMutationSchema,
@@ -137,11 +137,26 @@ export async function tournamentAction(_state: MutationState, formData: FormData
     if (!hasCapability(actor.role, capability)) throw new AuthorizationError(403);
     if (input.operation === "create") {
       await adminApplication.createTournament(input, actor.id);
+    } else if (input.operation === "update-tournament") {
+      await adminApplication.updateTournament(input, actor.id);
     } else {
       await adminApplication.setTournamentStatus(input, actor.id);
     }
     revalidatePath("/admin/tournaments");
+    revalidatePath("/tournaments");
     return { ok: true, message: SUCCESS };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function runJobAction(_state: MutationState, formData: FormData): Promise<MutationState> {
+  try {
+    await authorize("jobs.run");
+    const job = scheduledJobSchema.parse(values(formData).job);
+    const result = await adminApplication.runScheduledJob(job, new Date());
+    revalidatePath("/admin/jobs");
+    return { ok: true, message: `Đã chạy ${result.job}: ${result.summary}.` };
   } catch (error) {
     return failure(error);
   }

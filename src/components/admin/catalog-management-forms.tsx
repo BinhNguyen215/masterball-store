@@ -2,6 +2,7 @@ import { productAction } from "@/app/(admin)/admin/actions";
 
 import {
   Field,
+  idInputProps,
   inputClassName,
   MutationForm,
 } from "./mutation-form";
@@ -27,10 +28,10 @@ function ProductFields() {
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Mã game">
-          <input className={inputClassName} name="gameId" required maxLength={128} />
+          <input className={inputClassName} name="gameId" required {...idInputProps} />
         </Field>
         <Field label="Mã set (không bắt buộc)">
-          <input className={inputClassName} name="setId" maxLength={128} />
+          <input className={inputClassName} name="setId" {...idInputProps} />
         </Field>
         <Field label="Loại">
           <select className={inputClassName} name="type">
@@ -104,19 +105,19 @@ export function CatalogManagementForms() {
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Lưu trạng thái game">
             <input type="hidden" name="operation" value="game-status" />
-            <Field label="Mã game"><input className={inputClassName} name="gameId" required /></Field>
+            <Field label="Mã game"><input className={inputClassName} name="gameId" required {...idInputProps} /></Field>
             <Field label="Trạng thái"><CatalogStatusSelect /></Field>
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Tạo set">
             <input type="hidden" name="operation" value="create-set" />
-            <Field label="Mã game"><input className={inputClassName} name="gameId" required /></Field>
+            <Field label="Mã game"><input className={inputClassName} name="gameId" required {...idInputProps} /></Field>
             <Field label="Tên set"><input className={inputClassName} name="name" required maxLength={160} /></Field>
             <Field label="Mã set"><input className={inputClassName} name="code" required maxLength={80} /></Field>
             <Field label="Ngày phát hành"><input className={inputClassName} name="releaseDate" type="date" /></Field>
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Lưu trạng thái set">
             <input type="hidden" name="operation" value="set-status" />
-            <Field label="Mã set"><input className={inputClassName} name="setId" required /></Field>
+            <Field label="Mã set"><input className={inputClassName} name="setId" required {...idInputProps} /></Field>
             <Field label="Trạng thái"><CatalogStatusSelect /></Field>
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Tạo tag">
@@ -126,7 +127,7 @@ export function CatalogManagementForms() {
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Thay danh sách tag">
             <input type="hidden" name="operation" value="replace-tags" />
-            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required /></Field>
+            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required {...idInputProps} /></Field>
             <Field label="Các mã tag, ngăn cách bằng dấu phẩy"><textarea className={inputClassName} name="tagIds" rows={3} /></Field>
             <p className="text-xs text-slate-500">Để trống để gỡ toàn bộ tag khỏi sản phẩm.</p>
           </MutationForm>
@@ -142,13 +143,13 @@ export function CatalogManagementForms() {
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Cập nhật sản phẩm">
             <input type="hidden" name="operation" value="update-product" />
-            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required /></Field>
+            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required {...idInputProps} /></Field>
             <Field label="Phiên bản hiện tại"><input className={inputClassName} name="version" type="number" min={1} step={1} required /></Field>
             <ProductFields />
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Lưu trạng thái">
             <input type="hidden" name="operation" value="status" />
-            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required /></Field>
+            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required {...idInputProps} /></Field>
             <Field label="Trạng thái"><CatalogStatusSelect /></Field>
             <Field label="Phiên bản hiện tại"><input className={inputClassName} name="version" type="number" min={1} step={1} required /></Field>
             <p className="text-xs text-slate-500">Kích hoạt yêu cầu quyền xuất bản. Phiên bản giúp phát hiện chỉnh sửa đồng thời.</p>
@@ -161,13 +162,13 @@ export function CatalogManagementForms() {
         <div className="grid gap-5 xl:grid-cols-2">
           <MutationForm action={productAction} submitLabel="Tạo biến thể">
             <input type="hidden" name="operation" value="create-variant" />
-            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required /></Field>
+            <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required {...idInputProps} /></Field>
             <VariantFields />
             <p className="text-xs text-slate-500">Biến thể mới bắt đầu ở bản nháp với tồn kho bằng 0.</p>
           </MutationForm>
           <MutationForm action={productAction} submitLabel="Cập nhật biến thể">
             <input type="hidden" name="operation" value="update-variant" />
-            <Field label="Mã biến thể"><input className={inputClassName} name="variantId" required /></Field>
+            <Field label="Mã biến thể"><input className={inputClassName} name="variantId" required {...idInputProps} /></Field>
             <Field label="Phiên bản hiện tại"><input className={inputClassName} name="version" type="number" min={1} step={1} required /></Field>
             <VariantFields includeStatus />
           </MutationForm>

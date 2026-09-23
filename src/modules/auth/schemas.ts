@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const identifier = z.string().trim().min(1).max(128);
+const identifier = z.string().trim().uuid();
 const text = z.string().trim().max(2_000);
 const optionalIdentifier = z.preprocess(
   (value) => (typeof value === "string" && value.trim() ? value.trim() : null),
@@ -118,11 +118,20 @@ export const productMutationSchema = z.discriminatedUnion("operation", [
   }),
 ]);
 
+const optionalCount = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() ? value.trim() : undefined),
+  z.coerce.number().int().min(0).max(1_000_000).optional(),
+);
+
 export const inventoryMutationSchema = z.object({
-  variantId: identifier,
-  delta: z.coerce.number().int().min(-100_000).max(100_000).refine((value) => value !== 0),
+  variantId: z.string().trim().uuid(),
+  delta: z.coerce.number().int().min(-100_000).max(100_000),
   reason: z.string().trim().min(3).max(240),
-});
+  reorderPoint: optionalCount,
+}).refine(
+  (value) => value.delta !== 0 || value.reorderPoint !== undefined,
+  { message: "Cần nhập chênh lệch tồn kho hoặc ngưỡng cảnh báo.", path: ["delta"] },
+);
 
 export const orderMutationSchema = z.object({
   orderId: identifier,
@@ -149,6 +158,9 @@ const dateTime = z.string().trim().min(1).transform((value, context) => {
   return parsed.toISOString();
 });
 
+const emptyToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
 export const tournamentMutationSchema = z.discriminatedUnion("operation", [
   z.object({
     operation: z.literal("create"),
@@ -159,7 +171,43 @@ export const tournamentMutationSchema = z.discriminatedUnion("operation", [
     venueName: z.string().trim().min(2).max(240),
     startsAt: dateTime,
     endsAt: dateTime,
-    registrationDeadline: dateTime.optional(),
+    registrationDeadline: z.preprocess(emptyToUndefined, dateTime.optional()),
+    ctaUrl: z.preprocess(
+      emptyToUndefined,
+      z.string().url().max(500).optional(),
+    ),
+    rules: z.string().trim().min(2).max(10_000),
+  }).superRefine((value, context) => {
+    if (Date.parse(value.startsAt) >= Date.parse(value.endsAt)) {
+      context.addIssue({ code: "custom", path: ["endsAt"], message: "Thời gian kết thúc phải sau thời gian bắt đầu." });
+    }
+    if (value.registrationDeadline && Date.parse(value.registrationDeadline) > Date.parse(value.startsAt)) {
+      context.addIssue({ code: "custom", path: ["registrationDeadline"], message: "Hạn đăng ký không thể sau giờ bắt đầu." });
+    }
+  }),
+  z.object({
+    operation: z.literal("update-tournament"),
+    tournamentId: identifier,
+    version: z.coerce.number().int().positive(),
+    title: z.string().trim().min(2).max(180),
+    summary: z.string().trim().min(2).max(1_000),
+    venueName: z.string().trim().max(240),
+    startsAt: dateTime,
+    endsAt: dateTime,
+    registrationDeadline: z.preprocess(emptyToUndefined, dateTime.optional()),
+    ctaUrl: z.preprocess(
+      emptyToUndefined,
+      z.string().url().max(500).optional(),
+    ),
+    capacity: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().min(1).max(10_000).optional(),
+    ),
+    feeVnd: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().min(0).max(2_147_483_647).optional(),
+    ),
+    contact: z.preprocess(emptyToUndefined, z.string().max(250).optional()),
     rules: z.string().trim().min(2).max(10_000),
   }).superRefine((value, context) => {
     if (Date.parse(value.startsAt) >= Date.parse(value.endsAt)) {
@@ -173,9 +221,16 @@ export const tournamentMutationSchema = z.discriminatedUnion("operation", [
     operation: z.literal("status"),
     tournamentId: identifier,
     status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "UNPUBLISHED", "ARCHIVED", "CANCELLED"]),
-    currentStatus: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "UNPUBLISHED", "ARCHIVED"]),
-    publishAt: dateTime.optional(),
+    publishAt: z.preprocess(emptyToUndefined, dateTime.optional()),
     version: z.coerce.number().int().positive(),
+  }).superRefine((value, context) => {
+    if (value.status === "SCHEDULED" && !value.publishAt) {
+      context.addIssue({
+        code: "custom",
+        path: ["publishAt"],
+        message: "Lên lịch cần thời điểm xuất bản.",
+      });
+    }
   }),
 ]);
 

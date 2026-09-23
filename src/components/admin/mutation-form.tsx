@@ -35,3 +35,13 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const inputClassName = "rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200";
+
+/**
+ * Every internal identifier in this console is a database UUID. The pattern only
+ * gives immediate browser feedback; the server re-validates on submit.
+ */
+export const idInputProps = {
+  maxLength: 36,
+  pattern: "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+  placeholder: "00000000-0000-0000-0000-000000000000",
+} as const;

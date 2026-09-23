@@ -53,47 +53,66 @@ async function lockInventoryRows(tx: AppTransaction, variantIds: string[]) {
   return new Map(rows.map((row) => [row.variantId, row]));
 }
 
-export async function adjustInventory(input: {
+type InventoryAdjustment = {
   variantId: string;
   onHandDelta: number;
   referenceType: string;
   referenceId: string;
-} & MutationContext) {
-  if (!Number.isInteger(input.onHandDelta) || input.onHandDelta === 0) {
-    throw new InventoryError("Inventory adjustment must be a non-zero integer.", "INVALID_QUANTITY");
+  reorderPoint?: number;
+} & MutationContext;
+
+function assertAdjustmentInput(input: InventoryAdjustment) {
+  if (!Number.isInteger(input.onHandDelta)) {
+    throw new InventoryError("Inventory adjustment must be an integer.", "INVALID_QUANTITY");
   }
+  if (
+    input.reorderPoint !== undefined &&
+    (!Number.isInteger(input.reorderPoint) || input.reorderPoint < 0)
+  ) {
+    throw new InventoryError(
+      "Reorder point must be a non-negative integer.",
+      "INVALID_QUANTITY",
+    );
+  }
+  if (input.onHandDelta === 0 && input.reorderPoint === undefined) {
+    throw new InventoryError(
+      "Inventory adjustment must change stock or the reorder point.",
+      "INVALID_QUANTITY",
+    );
+  }
+}
+
+export async function adjustInventory(input: InventoryAdjustment) {
+  assertAdjustmentInput(input);
   return getDb().transaction((tx) => adjustInventoryInTransaction(tx, input));
 }
 
 export async function adjustInventoryInTransaction(
   tx: AppTransaction,
-  input: {
-    variantId: string;
-    onHandDelta: number;
-    referenceType: string;
-    referenceId: string;
-  } & MutationContext,
+  input: InventoryAdjustment,
 ) {
-  if (!Number.isInteger(input.onHandDelta) || input.onHandDelta === 0) {
-    throw new InventoryError("Inventory adjustment must be a non-zero integer.", "INVALID_QUANTITY");
+  assertAdjustmentInput(input);
+  const hasStockDelta = input.onHandDelta !== 0;
+  const locked = await lockInventoryRows(tx, [input.variantId]);
+  const current = locked.get(input.variantId)!;
+  const onHandAfter = current.onHand + input.onHandDelta;
+  if (onHandAfter < current.reserved) {
+    throw new InventoryError(
+      "Adjustment would make available inventory negative.",
+      "INVALID_ADJUSTMENT",
+    );
   }
-    const locked = await lockInventoryRows(tx, [input.variantId]);
-    const current = locked.get(input.variantId)!;
-    const onHandAfter = current.onHand + input.onHandDelta;
-    if (onHandAfter < current.reserved) {
-      throw new InventoryError(
-        "Adjustment would make available inventory negative.",
-        "INVALID_ADJUSTMENT",
-      );
-    }
-    await tx
-      .update(inventories)
-      .set({
-        onHand: onHandAfter,
-        version: sql`${inventories.version} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(inventories.variantId, input.variantId));
+  const reorderPointAfter = input.reorderPoint ?? current.reorderPoint;
+  await tx
+    .update(inventories)
+    .set({
+      onHand: onHandAfter,
+      reorderPoint: reorderPointAfter,
+      version: sql`${inventories.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(inventories.variantId, input.variantId));
+  if (hasStockDelta) {
     await tx.insert(inventoryMovements).values({
       variantId: input.variantId,
       type: input.onHandDelta > 0 ? "RECEIVE" : "ADJUST",
@@ -106,6 +125,7 @@ export async function adjustInventoryInTransaction(
       actorId: input.actorId ?? null,
       note: input.note ?? null,
     });
+  }
   await appendAuditLog(tx, {
     actorId: input.actorId ?? null,
     action: "inventory.adjust",
@@ -113,16 +133,23 @@ export async function adjustInventoryInTransaction(
     subjectId: input.variantId,
     before: {
       onHand: current.onHand,
+      reorderPoint: current.reorderPoint,
       reserved: current.reserved,
       version: current.version,
     },
     after: {
       onHand: onHandAfter,
+      reorderPoint: reorderPointAfter,
       reserved: current.reserved,
       version: current.version + 1,
     },
   });
-  return { variantId: input.variantId, onHand: onHandAfter, reserved: current.reserved };
+  return {
+    variantId: input.variantId,
+    onHand: onHandAfter,
+    reorderPoint: reorderPointAfter,
+    reserved: current.reserved,
+  };
 }
 
 export async function receiveInventory(

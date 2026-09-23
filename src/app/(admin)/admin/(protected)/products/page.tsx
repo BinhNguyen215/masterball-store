@@ -13,11 +13,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeading title="Sản phẩm" description="Tạo bản nháp, tìm kiếm và thay đổi trạng thái sản phẩm bằng thao tác lưu rõ ràng." />
-      <SearchFilterBar placeholder="Tên, slug hoặc SKU" statusOptions={[{ value: "DRAFT", label: "Bản nháp" }, { value: "ACTIVE", label: "Đang bán" }, { value: "ARCHIVED", label: "Lưu trữ" }]} />
+      <SearchFilterBar placeholder="Tên, slug hoặc SKU" searchParams={query} statusOptions={[{ value: "DRAFT", label: "Bản nháp" }, { value: "ACTIVE", label: "Đang bán" }, { value: "ARCHIVED", label: "Lưu trữ" }]} />
       <ResourcePanel resource="products" searchParams={query} label="danh sách sản phẩm" emptyMessage="Tạo bản nháp đầu tiên bằng biểu mẫu bên dưới." />
       <div className="mt-7">
         <h2 className="mb-3 text-xl font-black">Mã tham chiếu catalog</h2>
-        <ResourcePanel resource="catalog-references" searchParams={{}} label="mã tham chiếu catalog" emptyMessage="Tạo game, set hoặc tag bằng biểu mẫu bên dưới." />
+        <ResourcePanel resource="catalog-references" searchParams={query} label="mã tham chiếu catalog" emptyMessage="Tạo game, set hoặc tag bằng biểu mẫu bên dưới." />
       </div>
       {hasCapability(actor.role, "catalog.write") ? <CatalogManagementForms /> : null}
       {hasCapability(actor.role, "catalog.import") ? (

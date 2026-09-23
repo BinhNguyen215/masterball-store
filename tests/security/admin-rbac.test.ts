@@ -11,7 +11,7 @@ describe("admin role capabilities", () => {
     expect(hasCapability("CATALOG_MANAGER", "catalog.write")).toBe(true);
     expect(hasCapability("CATALOG_MANAGER", "inventory.adjust")).toBe(true);
     expect(hasCapability("CATALOG_MANAGER", "orders.transition")).toBe(false);
-    expect(hasCapability("CATALOG_MANAGER", "settings.write")).toBe(false);
+    expect(hasCapability("CATALOG_MANAGER", "settings.read")).toBe(false);
   });
 
   it("limits order staff to operational order, payment and inventory reads", () => {

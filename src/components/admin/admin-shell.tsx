@@ -12,6 +12,7 @@ const NAVIGATION: { href: string; label: string; capability?: Capability }[] = [
   { href: "/admin/payments", label: "Thanh toán", capability: "payments.read" },
   { href: "/admin/tournaments", label: "Giải đấu", capability: "tournaments.read" },
   { href: "/admin/audit", label: "Nhật ký", capability: "audit.read" },
+  { href: "/admin/jobs", label: "Tác vụ định kỳ", capability: "jobs.run" },
   { href: "/admin/settings", label: "Cấu hình", capability: "settings.read" },
 ];
 

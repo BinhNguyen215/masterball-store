@@ -30,7 +30,7 @@ import {
   processVnpayIpn,
   reconcilePaymentByQuery,
 } from "@/modules/payments";
-import { createTournament, listAdminTournaments, publishScheduledTournaments, transitionTournament } from "@/modules/tournaments";
+import { createTournament, listAdminTournaments, publishScheduledTournaments, transitionTournament, updateTournament } from "@/modules/tournaments";
 
 export type AdminResource =
   | "products"
@@ -61,6 +61,29 @@ export class IntegrationUnavailableError extends Error {
 
 type CatalogImportResult = Awaited<ReturnType<typeof importProductsCsv>>;
 
+export const SCHEDULED_JOBS = ["release-expired", "publish-scheduled", "process-email-outbox"] as const;
+
+export type ScheduledJobName = (typeof SCHEDULED_JOBS)[number];
+
+export const scheduledJobSchema = z.enum(SCHEDULED_JOBS);
+
+export type ScheduledJobResult = {
+  job: ScheduledJobName;
+  summary: string;
+};
+
+function summarizeJobResult(name: ScheduledJobName, value: unknown): string {
+  if (Array.isArray(value)) return `${value.length} bản ghi đã xử lý`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const parts = Object.entries(record)
+      .filter(([, entry]) => typeof entry === "number")
+      .map(([key, entry]) => `${key}: ${entry}`);
+    if (parts.length) return parts.join(", ");
+  }
+  return "Đã chạy xong";
+}
+
 export type AdminApplication = {
   list(resource: AdminResource, query: URLSearchParams): Promise<AdminList>;
   createProduct(input: Record<string, unknown>, actorId: string): Promise<void>;
@@ -78,11 +101,13 @@ export type AdminApplication = {
   transitionOrder(input: Record<string, unknown>, actorId: string): Promise<void>;
   reconcilePayment(input: Record<string, unknown>, actorId: string, ipAddress: string): Promise<void>;
   createTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
+  updateTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
   setTournamentStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
   importProductsCsv(input: { csv: string; dryRun: boolean; actorId: string }): Promise<CatalogImportResult>;
   publishScheduled(now: Date): Promise<unknown>;
   releaseExpired(now: Date): Promise<unknown>;
   processEmailOutbox(now: Date): Promise<unknown>;
+  runScheduledJob(name: ScheduledJobName, now: Date): Promise<ScheduledJobResult>;
   processVnpayIpn(query: URLSearchParams): Promise<{ rspCode: string; message: string }>;
   inspectVnpayReturn(query: URLSearchParams): Promise<{ valid: boolean; status: string }>;
 };
@@ -98,6 +123,61 @@ function text(value: unknown): string {
 
 function vnd(value: number): string {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+}
+
+const AUDIT_VALUE_LIMIT = 48;
+const AUDIT_CHANGE_LIMIT = 4;
+const AUDIT_NOISE_KEYS: Record<string, true> = {
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: true,
+  updatedBy: true,
+  version: true,
+};
+
+function auditValue(value: unknown): string {
+  if (value === undefined) return "—";
+  if (value === null) return "null";
+  if (typeof value === "string") return value.length > AUDIT_VALUE_LIMIT ? `${value.slice(0, AUDIT_VALUE_LIMIT)}…` : value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    const serialized = JSON.stringify(value) ?? "—";
+    return serialized.length > AUDIT_VALUE_LIMIT ? `${serialized.slice(0, AUDIT_VALUE_LIMIT)}…` : serialized;
+  } catch {
+    return "—";
+  }
+}
+
+function auditEntries(record: Record<string, unknown>): string[] {
+  return Object.keys(record)
+    .filter((key) => AUDIT_NOISE_KEYS[key] !== true)
+    .sort()
+    .slice(0, AUDIT_CHANGE_LIMIT)
+    .map((key) => `${key}: ${auditValue(record[key])}`);
+}
+
+/**
+ * Compact before → after summary for the audit table. Raw payloads are large
+ * (whole row snapshots) and may hold customer data, so only changed keys are
+ * shown and each value is truncated.
+ */
+function summarizeAuditChanges(before: unknown, after: unknown): string {
+  const beforeRecord = before && typeof before === "object" ? (before as Record<string, unknown>) : null;
+  const afterRecord = after && typeof after === "object" ? (after as Record<string, unknown>) : null;
+
+  if (beforeRecord && !afterRecord) return `đã xóa · ${auditEntries(beforeRecord).join("; ") || "—"}`;
+  if (!beforeRecord && afterRecord) return `đã tạo · ${auditEntries(afterRecord).join("; ") || "—"}`;
+  if (!beforeRecord || !afterRecord) return "—";
+
+  const keys = [...new Set([...Object.keys(beforeRecord), ...Object.keys(afterRecord)])].sort();
+  const changes: string[] = [];
+  for (const key of keys) {
+    if (JSON.stringify(beforeRecord[key]) === JSON.stringify(afterRecord[key])) continue;
+    changes.push(`${key}: ${auditValue(beforeRecord[key])} → ${auditValue(afterRecord[key])}`);
+    if (changes.length === AUDIT_CHANGE_LIMIT) break;
+  }
+  return changes.length ? changes.join("; ") : "—";
 }
 
 function pageOptions(query: URLSearchParams) {
@@ -183,8 +263,8 @@ async function listResource(resource: AdminResource, query: URLSearchParams): Pr
       : undefined;
     const result = await listAdminInventory({ ...options, status });
     return {
-      columns: [{ key: "id", label: "Mã biến thể" }, { key: "sku", label: "SKU" }, { key: "product", label: "Sản phẩm" }, { key: "onHand", label: "On hand" }, { key: "reserved", label: "Reserved" }, { key: "available", label: "Available" }, { key: "version", label: "Phiên bản" }],
-      items: result.items.map((row) => ({ id: row.variantId, cells: { id: row.variantId, sku: row.sku, product: row.productTitle, onHand: row.onHand, reserved: row.reserved, available: row.available, version: row.version } })),
+      columns: [{ key: "id", label: "Mã biến thể" }, { key: "sku", label: "SKU" }, { key: "product", label: "Sản phẩm" }, { key: "onHand", label: "On hand" }, { key: "reserved", label: "Reserved" }, { key: "available", label: "Available" }, { key: "reorderPoint", label: "Ngưỡng cảnh báo" }, { key: "version", label: "Phiên bản" }],
+      items: result.items.map((row) => ({ id: row.variantId, cells: { id: row.variantId, sku: row.sku, product: row.productTitle, onHand: row.onHand, reserved: row.reserved, available: row.available, reorderPoint: row.reorderPoint, version: row.version } })),
       total: result.total,
     };
   }
@@ -221,8 +301,8 @@ async function listResource(resource: AdminResource, query: URLSearchParams): Pr
       offset: options.offset,
     });
     return {
-      columns: [{ key: "createdAt", label: "Thời gian" }, { key: "actor", label: "Actor" }, { key: "action", label: "Hành động" }, { key: "subject", label: "Đối tượng" }, { key: "request", label: "Request ID" }],
-      items: result.items.map((row) => ({ id: row.id, cells: { createdAt: text(row.createdAt), actor: row.actorId ? text(row.actorId) : "Hệ thống", action: row.action, subject: `${row.subjectType}:${row.subjectId}`, request: row.requestId } })),
+      columns: [{ key: "createdAt", label: "Thời gian" }, { key: "actor", label: "Actor" }, { key: "action", label: "Hành động" }, { key: "subject", label: "Đối tượng" }, { key: "changes", label: "Thay đổi" }, { key: "request", label: "Request ID" }],
+      items: result.items.map((row) => ({ id: row.id, cells: { createdAt: text(row.createdAt), actor: row.actorId ? text(row.actorId) : "Hệ thống", action: row.action, subject: `${row.subjectType}:${row.subjectId}`, changes: summarizeAuditChanges(row.before, row.after), request: row.requestId } })),
       total: result.total,
     };
   }
@@ -233,6 +313,7 @@ const orderCreatedPayloadSchema = z.object({
   orderNumber: z.string().min(1).max(80),
   totalVnd: z.number().int().nonnegative().optional(),
   amountVnd: z.number().int().nonnegative().optional(),
+  orderUrl: z.url().max(500).optional(),
 }).refine((value) => value.totalVnd !== undefined || value.amountVnd !== undefined);
 
 async function sendTransactionalEmail(message: { recipient: string; template: string; payload: Record<string, unknown> }) {
@@ -241,6 +322,9 @@ async function sendTransactionalEmail(message: { recipient: string; template: st
   }
   const payload = orderCreatedPayloadSchema.parse(message.payload);
   const amountVnd = payload.totalVnd ?? payload.amountVnd!;
+  const orderUrlLine = payload.orderUrl
+    ? `\n\nTheo dõi trạng thái đơn: ${payload.orderUrl}`
+    : "";
   const environment = getEmailEnvironment();
   const transport = nodemailer.createTransport({
     host: environment.SMTP_HOST,
@@ -255,8 +339,8 @@ async function sendTransactionalEmail(message: { recipient: string; template: st
       ? `MasterBall Store – Đã xác nhận thanh toán ${payload.orderNumber}`
       : `MasterBall Store – Đơn hàng ${payload.orderNumber}`,
     text: message.template === "payment-paid"
-      ? `Thanh toán cho đơn ${payload.orderNumber}, số tiền ${vnd(amountVnd)}, đã được xác nhận qua kênh bảo mật.`
-      : `Chúng tôi đã nhận đơn hàng ${payload.orderNumber}, tổng giá trị ${vnd(amountVnd)}. Vui lòng giữ mã đơn để theo dõi trạng thái.`,
+      ? `Thanh toán cho đơn ${payload.orderNumber}, số tiền ${vnd(amountVnd)}, đã được xác nhận qua kênh bảo mật.${orderUrlLine}`
+      : `Chúng tôi đã nhận đơn hàng ${payload.orderNumber}, tổng giá trị ${vnd(amountVnd)}. Vui lòng giữ mã đơn để theo dõi trạng thái.${orderUrlLine}`,
   });
 }
 
@@ -350,6 +434,10 @@ export const adminApplication: AdminApplication = {
       referenceId: randomUUID(),
       actorId,
       note: String(input.reason),
+      reorderPoint:
+        input.reorderPoint === undefined || input.reorderPoint === null
+          ? undefined
+          : Number(input.reorderPoint),
     });
   },
   transitionOrder: async (input, actorId) => {
@@ -382,13 +470,33 @@ export const adminApplication: AdminApplication = {
       registrationDeadline: input.registrationDeadline || null,
     });
   },
+  updateTournament: async (input, actorId) => {
+    await updateTournament({
+      id: input.tournamentId,
+      expectedVersion: input.version,
+      actorId,
+      changes: {
+        title: input.title,
+        summary: input.summary,
+        venueName: input.venueName || null,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        registrationDeadline: input.registrationDeadline ?? null,
+        ctaUrl: input.ctaUrl ?? null,
+        capacity: input.capacity ?? null,
+        feeVnd: input.feeVnd ?? 0,
+        contact: input.contact ?? null,
+        rules: input.rules,
+      },
+    });
+  },
   setTournamentStatus: async (input, actorId) => {
     const status = String(input.status);
     await transitionTournament({
       id: input.tournamentId,
       expectedVersion: input.version,
       actorId,
-      toStatus: status === "CANCELLED" ? input.currentStatus : status,
+      toStatus: status === "CANCELLED" ? undefined : status,
       scheduledPublishAt: status === "SCHEDULED" ? input.publishAt : null,
       cancelled: status === "CANCELLED" ? true : undefined,
     });
@@ -397,6 +505,14 @@ export const adminApplication: AdminApplication = {
   publishScheduled: async (now) => publishScheduledTournaments({ now }),
   releaseExpired: async (now) => expirePendingOrders({ now }),
   processEmailOutbox: async (now) => processEmailOutbox(sendTransactionalEmail, { now }),
+  runScheduledJob: async (name, now) => {
+    const ran = await {
+      "process-email-outbox": () => processEmailOutbox(sendTransactionalEmail, { now }),
+      "publish-scheduled": () => publishScheduledTournaments({ now }),
+      "release-expired": () => expirePendingOrders({ now }),
+    }[name]();
+    return { job: name, summary: summarizeJobResult(name, ran) };
+  },
   processVnpayIpn: async (query) => {
     const result = await processVnpayIpn(Object.fromEntries(query.entries()));
     return { rspCode: result.RspCode, message: result.Message };

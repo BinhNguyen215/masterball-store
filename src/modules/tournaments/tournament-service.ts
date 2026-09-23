@@ -147,10 +147,14 @@ export async function transitionTournament(raw: unknown) {
       id: z.string().uuid(),
       expectedVersion: z.number().int().positive(),
       actorId: z.string().min(1),
-      toStatus: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "UNPUBLISHED", "ARCHIVED"]),
+      toStatus: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "UNPUBLISHED", "ARCHIVED"]).optional(),
       scheduledPublishAt: z.coerce.date().nullable().optional(),
       cancelled: z.boolean().optional(),
     })
+    .refine(
+      (value) => value.toStatus !== undefined || value.cancelled !== undefined,
+      { message: "A target status or a cancellation flag is required." },
+    )
     .parse(raw);
   return getDb().transaction(async (tx) => {
     const [before] = await tx
@@ -163,14 +167,15 @@ export async function transitionTournament(raw: unknown) {
     if (before.version !== input.expectedVersion) {
       throw new TournamentError("Tournament was changed by another request.", "VERSION_CONFLICT");
     }
+    const toStatus = input.toStatus ?? before.publicationStatus;
     const allowed = publicationTransitions[before.publicationStatus] as readonly string[];
-    if (input.toStatus !== before.publicationStatus && !allowed.includes(input.toStatus)) {
+    if (toStatus !== before.publicationStatus && !allowed.includes(toStatus)) {
       throw new TournamentError(
-        `Tournament cannot transition from ${before.publicationStatus} to ${input.toStatus}.`,
+        `Tournament cannot transition from ${before.publicationStatus} to ${toStatus}.`,
         "INVALID_STATE",
       );
     }
-    if (input.toStatus === "SCHEDULED" && !input.scheduledPublishAt) {
+    if (toStatus === "SCHEDULED" && !input.scheduledPublishAt) {
       throw new TournamentError("Scheduled publishing requires a future time.", "INVALID_STATE");
     }
     tournamentInputSchema.parse(before);
@@ -178,11 +183,11 @@ export async function transitionTournament(raw: unknown) {
     const [updated] = await tx
       .update(tournaments)
       .set({
-        publicationStatus: input.toStatus,
+        publicationStatus: toStatus,
         scheduledPublishAt:
-          input.toStatus === "SCHEDULED" ? input.scheduledPublishAt : null,
+          toStatus === "SCHEDULED" ? input.scheduledPublishAt : null,
         publishedAt:
-          input.toStatus === "PUBLISHED" ? (before.publishedAt ?? now) : before.publishedAt,
+          toStatus === "PUBLISHED" ? (before.publishedAt ?? now) : before.publishedAt,
         cancelled: input.cancelled ?? before.cancelled,
         cancelledAt:
           input.cancelled === true ? now : input.cancelled === false ? null : before.cancelledAt,
