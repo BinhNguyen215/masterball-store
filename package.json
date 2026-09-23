@@ -18,7 +18,9 @@
     "db:migrate": "tsx scripts/migrate-database.ts",
     "db:studio": "drizzle-kit studio",
     "bootstrap:owner": "tsx scripts/bootstrap-owner.ts",
-    "import:catalog": "tsx scripts/import-catalog.ts"
+    "import:catalog": "tsx scripts/import-catalog.ts",
+    "fetch:nshop": "tsx scripts/fetch-nshop-catalog.ts",
+    "import:nshop": "tsx scripts/import-nshop-catalog.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -52,6 +54,7 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^5.0.0",
     "drizzle-kit": "^0.31.10",
+    "embedded-postgres": "18.4.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "jsdom": "^30.0.1",

@@ -44,3 +44,6 @@ next-env.d.ts
 # local test artifacts
 /playwright-report/
 /test-results/
+
+# Project-isolated development database
+/.local/

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Barlow_Condensed, Be_Vietnam_Pro } from "next/font/google";
-
 import "./globals.css";
 
 const displayFont = Barlow_Condensed({
@@ -58,7 +58,7 @@ export const viewport: Viewport = {
   themeColor: "#090d20",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       className={`${displayFont.variable} ${bodyFont.variable}`}
