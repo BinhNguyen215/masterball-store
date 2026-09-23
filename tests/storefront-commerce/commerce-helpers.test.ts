@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ZodError } from "zod";
 
 import { getCartCookieOptions } from "@/app/(store)/cart/cart-cookie";
 import {
@@ -11,13 +12,19 @@ import {
 } from "@/app/(store)/cart/cart-commerce";
 import {
   createCheckoutIdempotencyKey,
-  getVietnamShippingFee,
   parseCheckoutForm,
 } from "@/app/(store)/checkout/checkout-commerce";
+import { getVietnamShippingFee, orderStatusUrl } from "@/modules/checkout";
+import { getStorefrontCopy } from "@/i18n";
 import {
   isValidOrderLookupToken,
   mapOrderForStorefront,
-} from "@/app/(store)/orders/[token]/order-commerce";
+} from "@/app/(store)/orders/order-commerce";
+import {
+  createOrderAccessToken,
+  normalizeOrderLookupPhone,
+  verifyOrderAccessToken,
+} from "@/modules/orders";
 import {
   getAddedCartQuantity,
   parseAddToCartForm,
@@ -103,18 +110,18 @@ describe("storefront cart input and mapping", () => {
       version: 2,
     };
 
-    expect(mapCartItems(snapshot)[0]).toMatchObject({
+    expect(mapCartItems(snapshot, "vi")[0]).toMatchObject({
       unitPriceVnd: 120_000,
       warning: expect.stringContaining("Hiện chỉ còn 1 sản phẩm"),
     });
-    expect(mapCartItems(snapshot)[0]?.warning).toContain("Giá đã đổi");
+    expect(mapCartItems(snapshot, "vi")[0]?.warning).toContain("Giá đã đổi");
     expect(isCheckoutReady(snapshot)).toBe(false);
-    expect(getCartPageMessage({ error: "changed" })?.kind).toBe("error");
+    expect(getCartPageMessage({ error: "changed" }, "vi")?.kind).toBe("error");
   });
 });
 
 describe("storefront checkout input and policy", () => {
-  it("parses the address, optional fields, payment method, and reviewed version", () => {
+  function checkoutForm(overrides: Record<string, string> = {}) {
     const form = new FormData();
     form.set("recipientName", "Nguyễn Minh Anh");
     form.set("phone", "0901 234 567");
@@ -127,8 +134,14 @@ describe("storefront checkout input and policy", () => {
     form.set("customerNote", "");
     form.set("paymentMethod", "VNPAY");
     form.set("cartVersion", "7");
+    form.set("acceptTerms", "on");
+    for (const [key, value] of Object.entries(overrides)) form.set(key, value);
+    return form;
+  }
 
-    expect(parseCheckoutForm(form)).toEqual({
+  it("parses the address, optional fields, payment method, and reviewed version", () => {
+    expect(parseCheckoutForm(checkoutForm())).toEqual({
+      acceptTerms: true,
       address: {
         district: "Quận 1",
         line1: "12 Nguyễn Huệ",
@@ -140,6 +153,16 @@ describe("storefront checkout input and policy", () => {
       cartVersion: 7,
       paymentMethod: "VNPAY",
     });
+  });
+
+  it("rejects a checkout submitted without terms acceptance", () => {
+    const form = checkoutForm();
+    form.delete("acceptTerms");
+
+    expect(() => parseCheckoutForm(form)).toThrow(ZodError);
+    expect(() => parseCheckoutForm(checkoutForm({ acceptTerms: "" }))).toThrow(
+      ZodError,
+    );
   });
 
   it("charges the documented fixed regional fee", () => {
@@ -158,6 +181,16 @@ describe("storefront checkout input and policy", () => {
     expect(first).toBe(createCheckoutIdempotencyKey(token, 3));
     expect(first).not.toBe(createCheckoutIdempotencyKey(token, 4));
     expect(first).not.toContain(token);
+  });
+
+  it("links the confirmation email to the public order page or omits the link", () => {
+    vi.stubEnv("APP_URL", "https://store.example.com/");
+    expect(orderStatusUrl("lookup-token")).toBe(
+      "https://store.example.com/orders/lookup-token",
+    );
+
+    vi.stubEnv("APP_URL", "");
+    expect(orderStatusUrl("lookup-token")).toBeNull();
   });
 });
 
@@ -192,7 +225,7 @@ describe("storefront order lookup mapping", () => {
       totalVnd: 230_000,
     };
 
-    const mapped = mapOrderForStorefront(source);
+    const mapped = mapOrderForStorefront(source, getStorefrontCopy("vi").orders);
     expect(mapped).toMatchObject({
       fulfillmentStatusLabel: "Đang chuẩn bị hàng",
       paymentMethodLabel: "Thanh toán khi nhận hàng",
@@ -205,5 +238,36 @@ describe("storefront order lookup mapping", () => {
       variantLabel: "SKU-01",
     });
     expect(mapped).not.toHaveProperty("address");
+  });
+
+  it("compares Vietnamese phone numbers in one national format", () => {
+    expect(normalizeOrderLookupPhone("+84 901 234 567")).toBe("0901234567");
+    expect(normalizeOrderLookupPhone("84-901-234-567")).toBe("0901234567");
+    expect(normalizeOrderLookupPhone("0901 234 567")).toBe("0901234567");
+    expect(normalizeOrderLookupPhone("(090) 123 4567")).toBe("0901234567");
+  });
+
+  it("keeps verified order access short-lived and tamper-evident", () => {
+    vi.stubEnv("ORDER_LOOKUP_SECRET", "order-lookup-secret-with-32-characters");
+    const orderId = "11111111-1111-4111-8111-111111111111";
+    const issuedAt = new Date("2026-09-23T10:00:00.000Z");
+    const token = createOrderAccessToken(orderId, { now: issuedAt, ttlMs: 60_000 });
+
+    expect(
+      verifyOrderAccessToken(token, new Date("2026-09-23T10:00:30.000Z")),
+    ).toEqual({ orderId });
+    expect(
+      verifyOrderAccessToken(token, new Date("2026-09-23T10:05:00.000Z")),
+    ).toBeNull();
+    expect(verifyOrderAccessToken("not-a-token", issuedAt)).toBeNull();
+    expect(
+      verifyOrderAccessToken(`${token.slice(0, -1)}A`, issuedAt),
+    ).toBeNull();
+    expect(
+      verifyOrderAccessToken(
+        token.replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"),
+        issuedAt,
+      ),
+    ).toBeNull();
   });
 });

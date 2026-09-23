@@ -8,18 +8,21 @@ import { ZodError } from "zod";
 import { getPaymentEnvironment } from "@/config/environment";
 import { getRequestIpAddress } from "@/lib/request-ip";
 import { CartError } from "@/modules/cart";
-import { CheckoutError, CheckoutService } from "@/modules/checkout";
+import { CheckoutError, CheckoutService, getVietnamShippingFee } from "@/modules/checkout";
 import { buildVnpayPaymentUrl, type VnpayConfig } from "@/modules/payments";
 
 import { clearCartToken, readCartToken } from "../cart/cart-cookie";
 import {
   createCheckoutIdempotencyKey,
-  getVietnamShippingFee,
   parseCheckoutForm,
 } from "./checkout-commerce";
 
 function checkoutErrorCode(error: unknown): string {
-  if (error instanceof ZodError) return "invalid";
+  if (error instanceof ZodError) {
+    return error.issues.some((issue) => issue.path[0] === "acceptTerms")
+      ? "consent"
+      : "invalid";
+  }
   if (error instanceof CartError) return "cart";
   if (error instanceof CheckoutError) {
     switch (error.code) {
@@ -81,17 +84,21 @@ export async function createCheckoutOrder(formData: FormData): Promise<void> {
     });
 
     if (order.paymentMethod === "VNPAY") {
-      if (!vnpayConfig || !order.providerReference) {
-        throw new Error("VNPAY payment reference is unavailable.");
+      if (order.reused && order.paymentStatus !== "PENDING") {
+        destination = `/orders/${order.lookupToken}`;
+      } else {
+        if (!vnpayConfig || !order.providerReference) {
+          throw new Error("VNPAY payment reference is unavailable.");
+        }
+        destination = buildVnpayPaymentUrl({
+          amountVnd: order.totalVnd,
+          config: vnpayConfig,
+          createdAt: order.createdAt,
+          ipAddress: await getCheckoutIpAddress(),
+          orderInfo: `Thanh toan don hang ${order.orderNumber}`,
+          transactionReference: order.providerReference,
+        });
       }
-      destination = buildVnpayPaymentUrl({
-        amountVnd: order.totalVnd,
-        config: vnpayConfig,
-        createdAt: order.createdAt,
-        ipAddress: await getCheckoutIpAddress(),
-        orderInfo: `Thanh toan don hang ${order.orderNumber}`,
-        transactionReference: order.providerReference,
-      });
     } else {
       destination = `/orders/${order.lookupToken}`;
     }

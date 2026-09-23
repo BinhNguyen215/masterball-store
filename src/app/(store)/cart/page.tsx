@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { CartView } from "@/components/storefront/cart-view";
 import { PageIntro } from "@/components/storefront/page-intro";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 import { CartError, getCart } from "@/modules/cart";
 
 import { removeCartItem, updateCartItem } from "./actions";
@@ -14,11 +16,14 @@ import {
   type CartSnapshot,
 } from "./cart-commerce";
 
-export const metadata: Metadata = {
-  title: "Giỏ hàng",
-  description: "Kiểm tra sản phẩm, số lượng và giá trước khi thanh toán.",
-  robots: { follow: false, index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = getStorefrontCopy(await readStorefrontLocale()).checkout.cart;
+  return {
+    title: copy.metaTitle,
+    description: copy.metaDescription,
+    robots: { follow: false, index: false },
+  };
+}
 
 export default async function CartPage({
   searchParams,
@@ -29,6 +34,8 @@ export default async function CartPage({
   }>;
 }) {
   const query = await searchParams;
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).checkout.cart;
   const configured = Boolean(process.env.DATABASE_URL?.trim());
   let snapshot: CartSnapshot | null = null;
   let loadMessage: { kind: "error" | "success"; text: string } | undefined;
@@ -42,7 +49,7 @@ export default async function CartPage({
           snapshot = null;
           loadMessage = {
             kind: "error",
-            text: "Giỏ hàng trước đó không còn hiệu lực. Hãy thêm lại sản phẩm bạn muốn mua.",
+            text: copy.messageInactive,
           };
         }
       } catch (error) {
@@ -50,15 +57,15 @@ export default async function CartPage({
           kind: "error",
           text:
             error instanceof CartError
-              ? "Không thể mở giỏ hàng này. Hãy thêm lại sản phẩm bạn muốn mua."
-              : "Chưa thể tải giỏ hàng lúc này. Vui lòng thử lại sau.",
+              ? copy.messageUnopenable
+              : copy.messageLoadFailed,
         };
       }
     }
   } else {
     loadMessage = {
       kind: "error",
-      text: "Giỏ hàng chưa khả dụng vì cửa hàng chưa kết nối cơ sở dữ liệu.",
+      text: copy.messageUnavailable,
     };
   }
 
@@ -67,16 +74,18 @@ export default async function CartPage({
   return (
     <>
       <PageIntro
-        breadcrumbLabel="Giỏ hàng"
-        description="Mọi thay đổi về giá hoặc tồn kho phải được xác nhận rõ trước khi bạn tiếp tục."
-        title="Kiểm tra giỏ hàng"
+        breadcrumbLabel={copy.breadcrumb}
+        description={copy.description}
+        title={copy.title}
       />
       <div className="section-inner">
         <CartView
           cartVersion={snapshot?.version}
           checkoutAvailable={ready}
-          items={snapshot ? mapCartItems(snapshot) : []}
-          message={getCartPageMessage(query) ?? loadMessage}
+          copy={copy}
+          items={snapshot ? mapCartItems(snapshot, locale) : []}
+          locale={locale}
+          message={getCartPageMessage(query, locale) ?? loadMessage}
           removeItemAction={snapshot ? removeCartItem : undefined}
           updateQuantityAction={snapshot ? updateCartItem : undefined}
         />

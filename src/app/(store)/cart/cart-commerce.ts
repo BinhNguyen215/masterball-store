@@ -2,6 +2,12 @@ import { z } from "zod";
 
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { CartLineItemViewModel } from "@/components/storefront/storefront-types";
+import {
+  formatCopy,
+  getStorefrontCopy,
+  type StorefrontCopy,
+  type StorefrontLocale,
+} from "@/i18n";
 
 const cartMutationSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
@@ -46,26 +52,38 @@ export type CartSnapshot = {
   }>;
 };
 
-function getCartWarning(item: CartSnapshot["items"][number]): string | undefined {
+function getCartWarning(
+  item: CartSnapshot["items"][number],
+  copy: StorefrontCopy["checkout"]["cart"],
+  locale: StorefrontLocale,
+): string | undefined {
   const warnings: string[] = [];
 
   if (item.priceChanged) {
     warnings.push(
-      `Giá đã đổi từ ${formatVnd(item.priceAtAddVnd)} thành ${formatVnd(item.currentPriceVnd)}.`,
+      formatCopy(copy.warningPriceChanged, {
+        from: formatVnd(item.priceAtAddVnd, locale),
+        to: formatVnd(item.currentPriceVnd, locale),
+      }),
     );
   }
   if (item.stockChanged) {
     warnings.push(
       item.available > 0
-        ? `Hiện chỉ còn ${item.available} sản phẩm.`
-        : "Sản phẩm hiện đã hết hàng.",
+        ? formatCopy(copy.warningStockLeft, { count: item.available })
+        : copy.warningSoldOut,
     );
   }
 
   return warnings.length ? warnings.join(" ") : undefined;
 }
 
-export function mapCartItems(snapshot: CartSnapshot): CartLineItemViewModel[] {
+export function mapCartItems(
+  snapshot: CartSnapshot,
+  locale: StorefrontLocale,
+): CartLineItemViewModel[] {
+  const copy = getStorefrontCopy(locale).checkout.cart;
+
   return snapshot.items.map((item) => ({
     lineId: item.variantId,
     productName: item.productTitle,
@@ -74,7 +92,7 @@ export function mapCartItems(snapshot: CartSnapshot): CartLineItemViewModel[] {
     unitPriceVnd: item.currentPriceVnd,
     variantId: item.variantId,
     variantLabel: item.sku,
-    warning: getCartWarning(item),
+    warning: getCartWarning(item, copy, locale),
   }));
 }
 
@@ -90,27 +108,24 @@ export function isCheckoutReady(snapshot: CartSnapshot): boolean {
   );
 }
 
-export function getCartPageMessage(input: {
-  error?: string | string[];
-  status?: string | string[];
-}): { kind: "error" | "success"; text: string } | undefined {
+export function getCartPageMessage(
+  input: {
+    error?: string | string[];
+    status?: string | string[];
+  },
+  locale: StorefrontLocale,
+): { kind: "error" | "success"; text: string } | undefined {
+  const copy = getStorefrontCopy(locale).checkout.cart;
   const status = Array.isArray(input.status) ? input.status[0] : input.status;
   if (status === "updated") {
-    return { kind: "success", text: "Đã cập nhật số lượng trong giỏ hàng." };
+    return { kind: "success", text: copy.messageUpdated };
   }
   if (status === "removed") {
-    return { kind: "success", text: "Đã xóa sản phẩm khỏi giỏ hàng." };
+    return { kind: "success", text: copy.messageRemoved };
   }
 
   const error = Array.isArray(input.error) ? input.error[0] : input.error;
-  const messages: Record<string, string> = {
-    changed: "Giỏ hàng đã thay đổi ở một yêu cầu khác. Trang đã tải lại dữ liệu mới nhất; vui lòng thử lại.",
-    expired: "Giỏ hàng trước đó không còn hiệu lực. Hãy thêm lại sản phẩm bạn muốn mua.",
-    invalid: "Số lượng hoặc sản phẩm gửi lên không hợp lệ.",
-    service: "Chưa thể cập nhật giỏ hàng lúc này. Vui lòng thử lại sau.",
-    stock: "Số lượng yêu cầu vượt quá tồn kho hiện tại.",
-    unavailable: "Sản phẩm này hiện không còn được bán.",
-  };
+  const messages: Record<string, string> = copy.errors;
 
   return error && messages[error]
     ? { kind: "error", text: messages[error] }

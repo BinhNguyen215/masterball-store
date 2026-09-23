@@ -6,13 +6,16 @@ import { ButtonLink } from "@/components/storefront/button-link";
 import { EmptyState } from "@/components/storefront/empty-state";
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { CartLineItemViewModel } from "@/components/storefront/storefront-types";
+import type { StorefrontCopy, StorefrontLocale } from "@/i18n";
 
 type CartMutation = (formData: FormData) => Promise<void>;
 
 type CartViewProps = {
   cartVersion?: number;
   checkoutAvailable?: boolean;
+  copy: StorefrontCopy["checkout"]["cart"];
   items: CartLineItemViewModel[];
+  locale: StorefrontLocale;
   message?: { kind: "error" | "success"; text: string };
   removeItemAction?: CartMutation;
   updateQuantityAction?: CartMutation;
@@ -36,7 +39,9 @@ function CartMessage({ message }: { message?: CartViewProps["message"] }) {
 export function CartView({
   cartVersion,
   checkoutAvailable = false,
+  copy,
   items,
+  locale,
   message,
   removeItemAction,
   updateQuantityAction,
@@ -47,10 +52,10 @@ export function CartView({
         <CartMessage message={message} />
         <EmptyState
           actionHref="/products"
-          actionLabel="Khám phá sản phẩm"
-          description="Giỏ hàng chưa có sản phẩm. Giá và tồn kho sẽ được kiểm tra lại khi bạn thêm hàng từ catalog."
+          actionLabel={copy.emptyAction}
+          description={copy.emptyDescription}
           icon={ShoppingBag}
-          title="Giỏ hàng đang trống"
+          title={copy.emptyTitle}
         />
       </>
     );
@@ -66,7 +71,7 @@ export function CartView({
       <section aria-labelledby="cart-items-title">
         <CartMessage message={message} />
         <h2 id="cart-items-title" className="sr-only">
-          Sản phẩm trong giỏ
+          {copy.itemsHeading}
         </h2>
         <ul className="cart-items">
           {items.map((item) => (
@@ -86,7 +91,7 @@ export function CartView({
               <div className="cart-item-copy">
                 <Link href={`/products/${item.productSlug}`}>{item.productName}</Link>
                 <span>{item.variantLabel}</span>
-                <span className="price">{formatVnd(item.unitPriceVnd)}</span>
+                <span className="price">{formatVnd(item.unitPriceVnd, locale)}</span>
                 {item.warning ? (
                   <p className="cart-warning" role="status">
                     <AlertTriangle aria-hidden="true" size={18} strokeWidth={1.8} />
@@ -99,7 +104,7 @@ export function CartView({
                   <input name="variantId" type="hidden" value={item.variantId} />
                   <input name="expectedVersion" type="hidden" value={cartVersion} />
                   <label className="field-label" htmlFor={`quantity-${item.lineId}`}>
-                    Số lượng
+                    {copy.quantity}
                   </label>
                   <input
                     defaultValue={item.quantity}
@@ -116,7 +121,7 @@ export function CartView({
                     disabled={!updateQuantityAction}
                     type="submit"
                   >
-                    Cập nhật
+                    {copy.update}
                   </button>
                 </form>
                 <form action={removeItemAction}>
@@ -128,7 +133,7 @@ export function CartView({
                     type="submit"
                   >
                     <Trash2 aria-hidden="true" size={18} strokeWidth={1.8} />
-                    Xóa
+                    {copy.remove}
                   </button>
                 </form>
               </div>
@@ -137,23 +142,23 @@ export function CartView({
         </ul>
       </section>
       <aside aria-labelledby="cart-summary-title" className="summary-panel">
-        <h2 id="cart-summary-title">Tóm tắt giỏ hàng</h2>
+        <h2 id="cart-summary-title">{copy.summaryTitle}</h2>
         <dl className="order-summary-list">
           <div className="order-summary-row">
-            <dt>Tạm tính</dt>
-            <dd>{formatVnd(subtotal)}</dd>
+            <dt>{copy.subtotal}</dt>
+            <dd>{formatVnd(subtotal, locale)}</dd>
           </div>
           <div className="order-summary-row">
-            <dt>Phí giao hàng</dt>
-            <dd>Xác nhận khi thanh toán</dd>
+            <dt>{copy.shipping}</dt>
+            <dd>{copy.shippingPending}</dd>
           </div>
         </dl>
         {checkoutAvailable ? (
-          <ButtonLink href="/checkout">Tiến hành thanh toán</ButtonLink>
+          <ButtonLink href="/checkout">{copy.checkout}</ButtonLink>
         ) : (
           <div className="notice" role="status">
             <AlertTriangle aria-hidden="true" size={20} strokeWidth={1.8} />
-            <p>Chưa thể thanh toán vì giỏ hàng có sản phẩm hết hoặc thiếu tồn kho.</p>
+            <p>{copy.notReady}</p>
           </div>
         )}
       </aside>

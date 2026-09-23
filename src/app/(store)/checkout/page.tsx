@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 
 import { CheckoutView } from "@/components/storefront/checkout-view";
 import { PageIntro } from "@/components/storefront/page-intro";
+import { getStorefrontCopy } from "@/i18n";
+import { readStorefrontLocale } from "@/i18n/storefront-locale";
 import { CartError, getCart } from "@/modules/cart";
+import { listVietnamProvinces } from "@/modules/checkout/vietnam-locations";
 
 import { createCheckoutOrder } from "./actions";
 import { readCartToken } from "../cart/cart-cookie";
@@ -13,11 +16,14 @@ import {
 } from "../cart/cart-commerce";
 import { getCheckoutPageMessage } from "./checkout-commerce";
 
-export const metadata: Metadata = {
-  title: "Thanh toán",
-  description: "Nhập thông tin nhận hàng và xác nhận đơn mua TCG.",
-  robots: { follow: false, index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = getStorefrontCopy(await readStorefrontLocale()).checkout.checkout;
+  return {
+    title: copy.metaTitle,
+    description: copy.metaDescription,
+    robots: { follow: false, index: false },
+  };
+}
 
 export default async function CheckoutPage({
   searchParams,
@@ -25,6 +31,9 @@ export default async function CheckoutPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const query = await searchParams;
+  const locale = await readStorefrontLocale();
+  const copy = getStorefrontCopy(locale).checkout.checkout;
+  const provinces = await listVietnamProvinces();
   const configured = Boolean(process.env.DATABASE_URL?.trim());
   let snapshot: CartSnapshot | null = null;
   let loadMessage: { kind: "error"; text: string } | undefined;
@@ -37,28 +46,25 @@ export default async function CheckoutPage({
         if (!isCheckoutReady(snapshot)) {
           loadMessage = {
             kind: "error",
-            text: "Giỏ hàng trống, đã hết hiệu lực hoặc có sản phẩm không đủ tồn kho. Vui lòng kiểm tra lại giỏ hàng.",
+            text: copy.messageEmptyCart,
           };
         }
       } catch (error) {
         loadMessage = {
           kind: "error",
-          text:
-            error instanceof CartError
-              ? "Giỏ hàng không còn hiệu lực. Vui lòng quay lại giỏ hàng."
-              : "Chưa thể tải giỏ hàng lúc này. Vui lòng thử lại sau.",
+          text: error instanceof CartError ? copy.messageExpired : copy.messageLoadFailed,
         };
       }
     } else {
       loadMessage = {
         kind: "error",
-        text: "Bạn chưa có giỏ hàng để thanh toán.",
+        text: copy.messageNoCart,
       };
     }
   } else {
     loadMessage = {
       kind: "error",
-      text: "Thanh toán chưa khả dụng vì cửa hàng chưa kết nối cơ sở dữ liệu.",
+      text: copy.messageUnavailable,
     };
   }
 
@@ -67,17 +73,20 @@ export default async function CheckoutPage({
   return (
     <>
       <PageIntro
-        breadcrumbLabel="Thanh toán"
-        description="Giá, tồn kho và lựa chọn thanh toán phải được xác thực trước khi đơn hàng được tạo."
-        title="Hoàn tất đơn hàng"
+        breadcrumbLabel={copy.breadcrumb}
+        description={copy.description}
+        title={copy.title}
       />
       <div className="section-inner">
         <CheckoutView
           cartVersion={snapshot?.version}
           checkoutAction={enabled ? createCheckoutOrder : undefined}
+          copy={copy}
           enabled={enabled}
-          items={snapshot ? mapCartItems(snapshot) : []}
-          message={getCheckoutPageMessage(query) ?? loadMessage}
+          items={snapshot ? mapCartItems(snapshot, locale) : []}
+          locale={locale}
+          message={getCheckoutPageMessage(query, locale) ?? loadMessage}
+          provinces={provinces}
           subtotalVnd={snapshot?.subtotalVnd ?? 0}
         />
       </div>

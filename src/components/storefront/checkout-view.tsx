@@ -1,29 +1,54 @@
+"use client";
+
 import { AlertTriangle, LockKeyhole } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { CartLineItemViewModel } from "@/components/storefront/storefront-types";
+import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
+import {
+  getVietnamShippingFee,
+  HO_CHI_MINH_SHIPPING_VND,
+  OTHER_PROVINCE_SHIPPING_VND,
+} from "@/modules/checkout/shipping-fee";
+import type { VietnamProvince } from "@/modules/checkout/vietnam-locations";
 
 type CheckoutAction = (formData: FormData) => Promise<void>;
+type CheckoutCopy = StorefrontCopy["checkout"]["checkout"];
 
 type CheckoutViewProps = {
   cartVersion?: number;
   checkoutAction?: CheckoutAction;
+  copy: CheckoutCopy;
   enabled: boolean;
   items: CartLineItemViewModel[];
+  locale: StorefrontLocale;
   message?: { kind: "error" | "success"; text: string };
+  provinces: VietnamProvince[];
   subtotalVnd: number;
 };
 
 export function CheckoutView({
   cartVersion,
   checkoutAction,
+  copy,
   enabled,
   items,
+  locale,
   message,
+  provinces,
   subtotalVnd,
 }: CheckoutViewProps) {
-  const hcmShippingVnd = 30_000;
-  const otherShippingVnd = 40_000;
+  const [province, setProvince] = useState("");
+  const hasProvince = province.trim().length > 0;
+  const shippingVnd = hasProvince ? getVietnamShippingFee({ province }) : null;
+  const shippingRegion = hasProvince
+    ? shippingVnd === HO_CHI_MINH_SHIPPING_VND
+      ? copy.shippingRegionHcm
+      : copy.shippingRegionOther
+    : null;
+  const hasProvinceList = provinces.length > 0;
 
   return (
     <div className="checkout-layout">
@@ -32,7 +57,7 @@ export function CheckoutView({
         className="checkout-panel"
         data-disabled={!enabled}
       >
-        <h2 id="checkout-details-title">Thông tin nhận hàng</h2>
+        <h2 id="checkout-details-title">{copy.detailsTitle}</h2>
         {message ? (
           <div className="notice" role={message.kind === "error" ? "alert" : "status"}>
             <AlertTriangle aria-hidden="true" size={20} strokeWidth={1.8} />
@@ -43,7 +68,7 @@ export function CheckoutView({
           <input name="cartVersion" type="hidden" value={cartVersion} />
           <div className="field">
             <label className="field-label" htmlFor="checkout-name">
-              Họ và tên
+              {copy.name}
             </label>
             <input
               autoComplete="name"
@@ -51,14 +76,14 @@ export function CheckoutView({
               id="checkout-name"
               maxLength={120}
               name="recipientName"
-              placeholder="Nguyễn Minh Anh…"
+              placeholder={copy.namePlaceholder}
               required
               type="text"
             />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-phone">
-              Số điện thoại
+              {copy.phone}
             </label>
             <input
               autoComplete="tel"
@@ -67,14 +92,14 @@ export function CheckoutView({
               inputMode="tel"
               maxLength={20}
               name="phone"
-              placeholder="0901 234 567…"
+              placeholder={copy.phonePlaceholder}
               required
               type="tel"
             />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-email">
-              Email <span className="field-help">(không bắt buộc)</span>
+              {copy.email} <span className="field-help">{copy.optional}</span>
             </label>
             <input
               autoComplete="email"
@@ -83,14 +108,14 @@ export function CheckoutView({
               inputMode="email"
               maxLength={320}
               name="email"
-              placeholder="ban@example.com…"
+              placeholder={copy.emailPlaceholder}
               spellCheck={false}
               type="email"
             />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-line-1">
-              Số nhà và tên đường
+              {copy.line1}
             </label>
             <input
               autoComplete="address-line1"
@@ -104,7 +129,7 @@ export function CheckoutView({
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-line-2">
-              Thông tin địa chỉ bổ sung <span className="field-help">(không bắt buộc)</span>
+              {copy.line2} <span className="field-help">{copy.optional}</span>
             </label>
             <input
               autoComplete="address-line2"
@@ -117,7 +142,7 @@ export function CheckoutView({
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-ward">
-              Phường hoặc xã <span className="field-help">(không bắt buộc)</span>
+              {copy.ward} <span className="field-help">{copy.optional}</span>
             </label>
             <input
               autoComplete="address-level3"
@@ -130,7 +155,7 @@ export function CheckoutView({
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-district">
-              Quận, huyện hoặc thành phố trực thuộc tỉnh
+              {copy.district}
             </label>
             <input
               autoComplete="address-level2"
@@ -144,45 +169,87 @@ export function CheckoutView({
           </div>
           <div className="field">
             <label className="field-label" htmlFor="checkout-province">
-              Tỉnh hoặc thành phố
+              {copy.province}
             </label>
-            <input
-              autoComplete="address-level1"
-              disabled={!enabled}
-              id="checkout-province"
-              maxLength={120}
-              name="province"
-              placeholder="TP. Hồ Chí Minh…"
-              required
-              type="text"
-            />
+            {hasProvinceList ? (
+              <select
+                autoComplete="address-level1"
+                disabled={!enabled}
+                id="checkout-province"
+                name="province"
+                onChange={(event) => setProvince(event.target.value)}
+                required
+                value={province}
+              >
+                <option value="">{copy.provincePlaceholderOption}</option>
+                {provinces.map((option) => (
+                  <option key={option.code} value={option.name}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                autoComplete="address-level1"
+                disabled={!enabled}
+                id="checkout-province"
+                maxLength={120}
+                name="province"
+                onChange={(event) => setProvince(event.target.value)}
+                placeholder={copy.provincePlaceholder}
+                required
+                type="text"
+                value={province}
+              />
+            )}
             <p className="field-help">
-              Phí giao nội địa do máy chủ tính: TP.HCM 30.000 ₫; tỉnh/thành khác 40.000 ₫.
-              Hiện chưa hỗ trợ nhận tại cửa hàng.
+              {formatCopy(copy.provinceHelp, {
+                hcm: formatVnd(HO_CHI_MINH_SHIPPING_VND, locale),
+                other: formatVnd(OTHER_PROVINCE_SHIPPING_VND, locale),
+              })}
             </p>
           </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-payment-method">
-              Phương thức thanh toán
+          <fieldset className="payment-methods">
+            <legend className="field-label">{copy.paymentLegend}</legend>
+            <label className="payment-method">
+              <input
+                disabled={!enabled}
+                name="paymentMethod"
+                type="radio"
+                value="VNPAY"
+              />
+              <span aria-hidden="true" className="payment-method-icon">💳</span>
+              <span>
+                <strong>{copy.vnpayTitle}</strong>
+                <small>{copy.vnpayHint}</small>
+              </span>
             </label>
-            <select
-              defaultValue="COD"
-              disabled={!enabled}
-              id="checkout-payment-method"
-              name="paymentMethod"
-              required
-            >
-              <option value="COD">Thanh toán khi nhận hàng (COD)</option>
-              <option value="VNPAY">Thanh toán trực tuyến qua VNPAY</option>
-            </select>
-            <p className="field-help">
-              Trang quay về từ VNPAY chỉ hiển thị kết quả. Đơn chỉ được ghi nhận đã thanh toán
-              sau khi máy chủ xác minh thông báo từ VNPAY.
-            </p>
-          </div>
+            <label className="payment-method">
+              <input
+                defaultChecked
+                disabled={!enabled}
+                name="paymentMethod"
+                type="radio"
+                value="COD"
+              />
+              <span aria-hidden="true" className="payment-method-icon">📦</span>
+              <span>
+                <strong>{copy.codTitle}</strong>
+                <small>{copy.codHint}</small>
+              </span>
+            </label>
+            <div aria-disabled="true" className="payment-method payment-method--disabled">
+              <span aria-hidden="true" className="payment-method-icon">▦</span>
+              <span>
+                <strong>{copy.qrTitle}</strong>
+                <small>{copy.qrHint}</small>
+              </span>
+            </div>
+            <p className="field-help">{copy.vnpayNote}</p>
+          </fieldset>
           <div className="field">
             <label className="field-label" htmlFor="checkout-note">
-              Ghi chú đơn hàng <span className="field-help">(không bắt buộc)</span>
+              {copy.note} <span className="field-help">{copy.optional}</span>
             </label>
             <textarea
               disabled={!enabled}
@@ -192,14 +259,30 @@ export function CheckoutView({
               rows={4}
             />
           </div>
+          <label className="consent-field">
+            <input
+              disabled={!enabled}
+              id="checkout-terms"
+              name="acceptTerms"
+              required
+              type="checkbox"
+            />
+            <span>
+              {copy.consentPrefix}{" "}
+              <Link href="/policies/terms">{copy.consentTerms}</Link>,{" "}
+              <Link href="/policies/returns">{copy.consentReturns}</Link>{" "}
+              {copy.consentConjunction}{" "}
+              <Link href="/policies/privacy">{copy.consentPrivacy}</Link>.
+            </span>
+          </label>
           <button className="button button--primary" disabled={!enabled} type="submit">
             <LockKeyhole aria-hidden="true" size={18} strokeWidth={1.8} />
-            {enabled ? "Xác nhận đặt hàng" : "Chưa thể đặt hàng"}
+            {enabled ? copy.submit : copy.submitDisabled}
           </button>
         </form>
       </section>
       <aside aria-labelledby="checkout-summary-title" className="summary-panel">
-        <h2 id="checkout-summary-title">Đơn hàng</h2>
+        <h2 id="checkout-summary-title">{copy.summaryTitle}</h2>
         {items.length ? (
           <dl className="order-summary-list">
             {items.map((item) => (
@@ -211,27 +294,35 @@ export function CheckoutView({
                     <span className="cart-warning"> {item.warning}</span>
                   ) : null}
                 </dt>
-                <dd>{formatVnd(item.unitPriceVnd * item.quantity)}</dd>
+                <dd>{formatVnd(item.unitPriceVnd * item.quantity, locale)}</dd>
               </div>
             ))}
             <div className="order-summary-row">
-              <dt>Tạm tính</dt>
-              <dd>{formatVnd(subtotalVnd)}</dd>
+              <dt>{copy.subtotal}</dt>
+              <dd>{formatVnd(subtotalVnd, locale)}</dd>
             </div>
             <div className="order-summary-row">
-              <dt>Tổng tại TP.HCM</dt>
-              <dd>{formatVnd(subtotalVnd + hcmShippingVnd)}</dd>
+              <dt>
+                {copy.shipping}
+                {shippingRegion ? (
+                  <span className="field-help"> ({shippingRegion})</span>
+                ) : null}
+              </dt>
+              <dd>
+                {shippingVnd === null
+                  ? copy.shippingPending
+                  : formatVnd(shippingVnd, locale)}
+              </dd>
             </div>
             <div className="order-summary-row">
-              <dt>Tổng tại tỉnh/thành khác</dt>
-              <dd>{formatVnd(subtotalVnd + otherShippingVnd)}</dd>
+              <dt>
+                {shippingVnd === null ? copy.totalExcludingShipping : copy.total}
+              </dt>
+              <dd>{formatVnd(subtotalVnd + (shippingVnd ?? 0), locale)}</dd>
             </div>
           </dl>
         ) : (
-          <p className="field-help">
-            Chưa có giỏ hàng đã được máy chủ xác thực. Không có tổng tiền tạm nào được gửi từ
-            trình duyệt.
-          </p>
+          <p className="field-help">{copy.summaryEmpty}</p>
         )}
       </aside>
     </div>
