@@ -23,12 +23,34 @@ const authSchema = z.object({
   BETTER_AUTH_URL: url,
 });
 
+function isLoopbackHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname === "[::1]")
+    );
+  } catch {
+    return false;
+  }
+}
+
+const paymentUrl = url.refine(
+  (value) =>
+    process.env.NODE_ENV !== "production" ||
+    value.startsWith("https://") ||
+    isLoopbackHttpUrl(value),
+  "Payment URLs must use HTTPS in production",
+);
+
 const paymentSchema = z.object({
   VNPAY_TMN_CODE: requiredText,
   VNPAY_HASH_SECRET: requiredText,
-  VNPAY_PAYMENT_URL: url,
-  VNPAY_RETURN_URL: url,
-  VNPAY_API_URL: url,
+  VNPAY_PAYMENT_URL: paymentUrl,
+  VNPAY_RETURN_URL: paymentUrl,
+  VNPAY_API_URL: paymentUrl,
 });
 
 const storageSchema = z.object({

@@ -19,13 +19,36 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
+const LOOPBACK_HOSTS: Record<string, true> = {
+  localhost: true,
+  "127.0.0.1": true,
+  "[::1]": true,
+};
+
+function requiredPaymentUrl(name: string): string {
+  const value = requiredEnvironment(name);
+  if (process.env.NODE_ENV !== "production") return value;
+  if (value.startsWith("https://")) return value;
+  // Local production-mode runs (a built server on loopback) still need a usable
+  // return URL; only non-loopback hosts must be HTTPS.
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" && LOOPBACK_HOSTS[parsed.hostname] === true) {
+      return value;
+    }
+  } catch {
+    // fall through to the HTTPS requirement below
+  }
+  throw new Error(`${name} must use HTTPS in production.`);
+}
+
 export function getVnpayConfig(): VnpayConfig {
   return {
     tmnCode: requiredEnvironment("VNPAY_TMN_CODE"),
     hashSecret: requiredEnvironment("VNPAY_HASH_SECRET"),
-    paymentUrl: requiredEnvironment("VNPAY_PAYMENT_URL"),
-    returnUrl: requiredEnvironment("VNPAY_RETURN_URL"),
-    apiUrl: requiredEnvironment("VNPAY_API_URL"),
+    paymentUrl: requiredPaymentUrl("VNPAY_PAYMENT_URL"),
+    returnUrl: requiredPaymentUrl("VNPAY_RETURN_URL"),
+    apiUrl: requiredPaymentUrl("VNPAY_API_URL"),
   };
 }
 
