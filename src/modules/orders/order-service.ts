@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, asc, count, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db";
@@ -7,6 +9,7 @@ import {
   orders,
   orderStatusHistory,
   payments,
+  rateLimits,
 } from "@/db/schema";
 import { appendAuditLog } from "@/modules/audit";
 import {
@@ -31,19 +34,123 @@ export class OrderStateError extends Error {
 export async function getOrderByLookupToken(token: string) {
   const lookupTokenHash = hashOrderLookupToken(token);
   const [order] = await getDb()
-    .select()
+    .select({ id: orders.id })
     .from(orders)
     .where(eq(orders.lookupTokenHash, lookupTokenHash))
     .limit(1);
   if (!order) return null;
+  return loadOrderBundle(order.id);
+}
+
+const orderIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const orderNumberPattern = /^MB-[0-9A-F]{20}$/;
+
+export async function getOrderById(orderId: string) {
+  if (!orderIdPattern.test(orderId)) return null;
+  return loadOrderBundle(orderId);
+}
+
+/**
+ * National-format Vietnamese phone digits, so `+84 901 234 567`, `0901 234 567`
+ * and `84901234567` all compare equal.
+ */
+export function normalizeOrderLookupPhone(value: string): string {
+  const digits = value.replace(/[^0-9]/g, "");
+  return digits.startsWith("84") && digits.length >= 11 ? `0${digits.slice(2)}` : digits;
+}
+
+/**
+ * Resolves an order from evidence the customer holds: the order number printed
+ * on the confirmation email plus the phone number used at checkout.
+ */
+export async function findOrderIdByContact(input: {
+  orderNumber: string;
+  phone: string;
+}): Promise<string | null> {
+  const orderNumber = input.orderNumber.trim().toUpperCase();
+  const phone = normalizeOrderLookupPhone(input.phone);
+  if (!orderNumberPattern.test(orderNumber)) return null;
+  if (phone.length < 9 || phone.length > 11) return null;
+
+  const storedPhone = sql`regexp_replace(${orderAddresses.phone}, '[^0-9]', '', 'g')`;
+  const [row] = await getDb()
+    .select({ id: orders.id })
+    .from(orders)
+    .innerJoin(orderAddresses, eq(orderAddresses.orderId, orders.id))
+    .where(
+      and(
+        eq(orders.orderNumber, orderNumber),
+        or(eq(storedPhone, phone), eq(storedPhone, `84${phone.slice(1)}`)),
+      ),
+    )
+    .limit(1);
+  return row?.id ?? null;
+}
+
+const ORDER_LOOKUP_WINDOW_MS = 10 * 60_000;
+const ORDER_LOOKUP_MAX_ATTEMPTS = 8;
+
+/**
+ * Fixed-window throttle for guest lookup attempts, stored in the shared
+ * `rateLimit` table so it holds across instances. Returns false when the caller
+ * must be rejected; a rejected attempt still records its timestamp.
+ */
+export async function consumeOrderLookupAttempt(
+  clientKey: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const key = `order-lookup:${clientKey}`;
+  const timestamp = now.getTime();
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(rateLimits)
+      .where(eq(rateLimits.key, key))
+      .limit(1)
+      .for("update");
+
+    if (!row || timestamp - row.lastRequest > ORDER_LOOKUP_WINDOW_MS) {
+      if (row) {
+        await tx
+          .update(rateLimits)
+          .set({ count: 1, lastRequest: timestamp })
+          .where(eq(rateLimits.key, key));
+      } else {
+        await tx
+          .insert(rateLimits)
+          .values({ id: randomUUID(), key, count: 1, lastRequest: timestamp })
+          .onConflictDoNothing();
+      }
+      return true;
+    }
+
+    const count = row.count + 1;
+    await tx
+      .update(rateLimits)
+      .set({ count, lastRequest: timestamp })
+      .where(eq(rateLimits.key, key));
+    return count <= ORDER_LOOKUP_MAX_ATTEMPTS;
+  });
+}
+
+async function loadOrderBundle(orderId: string) {
+  const db = getDb();
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  if (!order) return null;
   const [address, items] = await Promise.all([
-    getDb()
+    db
       .select()
       .from(orderAddresses)
       .where(eq(orderAddresses.orderId, order.id))
       .limit(1)
       .then((rows) => rows[0] ?? null),
-    getDb()
+    db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, order.id))
@@ -91,11 +198,22 @@ export async function transitionOrder(input: {
           actorId: input.actorId,
           note: input.reason,
         });
+        await tx
+          .update(payments)
+          .set({
+            status: "FAILED",
+            updatedAt: now,
+          })
+          .where(and(eq(payments.orderId, order.id), eq(payments.status, "PENDING")));
       }
       await tx
         .update(orders)
         .set({
           orderStatus: target,
+          paymentStatus:
+            target === "CANCELLED" && order.paymentStatus === "PENDING"
+              ? "FAILED"
+              : order.paymentStatus,
           cancelledAt: target === "CANCELLED" ? now : order.cancelledAt,
           completedAt: target === "COMPLETED" ? now : order.completedAt,
           internalNote: input.internalNote ?? order.internalNote,

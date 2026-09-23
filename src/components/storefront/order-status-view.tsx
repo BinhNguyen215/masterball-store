@@ -6,16 +6,25 @@ import {
   formatVnd,
 } from "@/components/storefront/storefront-formatters";
 import type { OrderStatusViewModel } from "@/components/storefront/storefront-types";
+import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
 
-export function OrderStatusView({ order }: { order: OrderStatusViewModel | null }) {
+type OrderStatusViewProps = {
+  copy: StorefrontCopy;
+  locale: StorefrontLocale;
+  order: OrderStatusViewModel | null;
+};
+
+export function OrderStatusView({ copy, locale, order }: OrderStatusViewProps) {
+  const orders = copy.orders;
+
   if (!order) {
     return (
       <EmptyState
         actionHref="/products"
-        actionLabel="Về cửa hàng"
-        description="Dịch vụ tra cứu đơn chưa khả dụng vì cửa hàng chưa kết nối cơ sở dữ liệu. Trang này không xác nhận rằng đơn đã được tạo hoặc thanh toán."
+        actionLabel={copy.chrome.actions.backToStore}
+        description={orders.unavailableDescription}
         icon={PackageSearch}
-        title="Chưa thể tra cứu đơn"
+        title={orders.unavailableTitle}
       />
     );
   }
@@ -26,54 +35,58 @@ export function OrderStatusView({ order }: { order: OrderStatusViewModel | null 
         <span aria-hidden="true" className="state-icon">
           <ReceiptText size={22} strokeWidth={1.8} />
         </span>
-        <h2>Đơn {order.reference}</h2>
+        <h2>{formatCopy(orders.orderHeading, { reference: order.reference })}</h2>
         <p>{order.statusLabel}</p>
-        <p className="field-help">Tạo lúc {formatVietnamDateTime(order.createdAt)}</p>
+        <p className="field-help">
+          {formatCopy(orders.createdAt, {
+            date: formatVietnamDateTime(order.createdAt, locale),
+          })}
+        </p>
       </section>
       <section aria-labelledby="order-status-title" className="summary-panel">
-        <h2 id="order-status-title">Trạng thái hiện tại</h2>
+        <h2 id="order-status-title">{orders.currentStatus}</h2>
         <dl className="order-summary-list">
           <div className="order-summary-row">
-            <dt>Phương thức</dt>
+            <dt>{orders.paymentMethod}</dt>
             <dd>{order.paymentMethodLabel}</dd>
           </div>
           <div className="order-summary-row">
-            <dt>Thanh toán</dt>
+            <dt>{orders.payment}</dt>
             <dd>{order.paymentStatusLabel}</dd>
           </div>
           <div className="order-summary-row">
-            <dt>Xử lý đơn</dt>
+            <dt>{orders.fulfillment}</dt>
             <dd>{order.fulfillmentStatusLabel}</dd>
           </div>
         </dl>
-        <p className="field-help">
-          Kết quả trên URL quay về từ cổng thanh toán chỉ dùng để hiển thị. Trạng thái thanh
-          toán chỉ thay đổi sau khi máy chủ xác minh thông báo từ nhà cung cấp.
-        </p>
+        <p className="field-help">{orders.paymentNote}</p>
       </section>
       <section aria-labelledby="order-items-title" className="summary-panel">
-        <h2 id="order-items-title">Sản phẩm</h2>
+        <h2 id="order-items-title">{orders.items}</h2>
         <dl className="order-summary-list">
           {order.items.map((item) => (
             <div className="order-summary-row" key={item.lineId}>
               <dt>
-                {item.productName} × {item.quantity}
+                {formatCopy(orders.itemLine, {
+                  name: item.productName,
+                  quantity: item.quantity,
+                })}
                 <span className="field-help"> {item.variantLabel}</span>
               </dt>
-              <dd>{formatVnd(item.lineTotalVnd)}</dd>
+              <dd>{formatVnd(item.lineTotalVnd, locale)}</dd>
             </div>
           ))}
           <div className="order-summary-row">
-            <dt>Tạm tính</dt>
-            <dd>{formatVnd(order.subtotalVnd)}</dd>
+            <dt>{orders.subtotal}</dt>
+            <dd>{formatVnd(order.subtotalVnd, locale)}</dd>
           </div>
           <div className="order-summary-row">
-            <dt>Phí giao hàng</dt>
-            <dd>{formatVnd(order.shippingVnd)}</dd>
+            <dt>{orders.shipping}</dt>
+            <dd>{formatVnd(order.shippingVnd, locale)}</dd>
           </div>
           <div className="order-summary-row">
-            <dt>Tổng cộng</dt>
-            <dd>{formatVnd(order.totalVnd)}</dd>
+            <dt>{orders.total}</dt>
+            <dd>{formatVnd(order.totalVnd, locale)}</dd>
           </div>
         </dl>
       </section>

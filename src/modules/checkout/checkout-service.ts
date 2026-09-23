@@ -52,6 +52,22 @@ export type ShippingQuoteItem = {
   lineTotalVnd: number;
 };
 
+/**
+ * Permanent guest link to the order page. Returns null when the deployment has
+ * no public base URL, so the confirmation email never carries a broken link.
+ */
+export function orderStatusUrl(lookupToken: string): string | null {
+  const base = (
+    process.env.APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  if (!/^https?:\/\/[^\s]+$/.test(base)) return null;
+  return `${base}/orders/${lookupToken}`;
+}
+
 export type ShippingPolicy = (
   address: CheckoutAddress,
   items: ShippingQuoteItem[],
@@ -245,12 +261,17 @@ export class CheckoutService {
         .where(and(eq(carts.id, cart.id), eq(carts.status, "ACTIVE")));
 
       if (input.address.email) {
+        const orderUrl = orderStatusUrl(identity.lookupToken);
         await enqueueEmail(tx, {
           orderId,
           deduplicationKey: `order-created:${orderId}`,
           template: "order-created",
           recipient: input.address.email,
-          payload: { orderNumber: identity.orderNumber, totalVnd },
+          payload: {
+            orderNumber: identity.orderNumber,
+            totalVnd,
+            ...(orderUrl ? { orderUrl } : {}),
+          },
         });
       }
       return {
