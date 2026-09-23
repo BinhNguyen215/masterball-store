@@ -11,6 +11,13 @@ const policies = {
       "Phạm vi dữ liệu và cách cửa hàng bảo vệ thông tin khách hàng sẽ được công bố tại đây.",
     sections: [
       {
+        heading: "Cookie và bộ nhớ trình duyệt",
+        paragraphs: [
+          "Cửa hàng chỉ đặt cookie thiết yếu: một cookie giỏ hàng đã ký để giữ sản phẩm bạn chọn, một cookie phiên đăng nhập cho nhân viên cửa hàng, một cookie ghi nhớ ngôn ngữ hiển thị, và một cookie tạm thời (30 phút) cấp quyền xem đúng đơn hàng bạn vừa tra cứu.",
+          "Các cookie này không dùng cho quảng cáo, không theo dõi bạn trên trang khác và không bán dữ liệu cho bên thứ ba. Vì chỉ có cookie thiết yếu, cửa hàng không hiển thị banner đồng ý cookie; bạn có thể xoá cookie bất cứ lúc nào trong trình duyệt, khi đó giỏ hàng và ngôn ngữ sẽ được tạo lại.",
+        ],
+      },
+      {
         heading: "Trạng thái nội dung",
         paragraphs: [
           "Chính sách quyền riêng tư chính thức chưa được cửa hàng phê duyệt. Trang này không thay thế thông báo pháp lý hoàn chỉnh.",
