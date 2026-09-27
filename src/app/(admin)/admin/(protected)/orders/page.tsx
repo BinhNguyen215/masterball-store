@@ -13,9 +13,9 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       <PageHeading title="Đơn hàng" description="Tìm đơn theo mã và thực hiện duy nhất các chuyển trạng thái được miền đơn hàng cho phép." />
       <SearchFilterBar placeholder="Mã đơn hàng" searchParams={query} statusOptions={[{ value: "PENDING_PAYMENT", label: "Chờ thanh toán" }, { value: "CONFIRMED", label: "Đã xác nhận" }, { value: "PROCESSING", label: "Đang đóng gói" }, { value: "SHIPPED", label: "Đã gửi" }, { value: "DELIVERED", label: "Đã giao" }, { value: "MANUAL_REVIEW", label: "Cần đối soát" }, { value: "CANCELLED", label: "Đã hủy" }]} />
       <ResourcePanel resource="orders" searchParams={query} label="đơn hàng" emptyMessage="Không có đơn phù hợp với bộ lọc." />
-      <div className="mt-7 max-w-2xl">
+      <div className="mt-8 max-w-2xl">
         <MutationForm action={orderAction} submitLabel="Cập nhật đơn">
-          <h2 className="text-lg font-black">Chuyển trạng thái an toàn</h2>
+          <h2 className="text-lg font-bold">Chuyển trạng thái an toàn</h2>
           <Field label="Mã nội bộ của đơn"><input className={inputClassName} name="orderId" required {...idInputProps} /></Field>
           <Field label="Trạng thái đích"><select className={inputClassName} name="targetStatus"><option value="CONFIRMED">Đã xác nhận</option><option value="PROCESSING">Đang xử lý</option><option value="SHIPPED">Đã gửi</option><option value="DELIVERED">Đã giao</option><option value="COMPLETED">Hoàn tất</option><option value="CANCELLED">Hủy đơn</option></select></Field>
           <Field label="Phiên bản hiện tại"><input className={inputClassName} name="version" type="number" min={1} step={1} required /></Field>

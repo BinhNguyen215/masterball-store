@@ -152,6 +152,73 @@ export const paymentMutationSchema = z.discriminatedUnion("operation", [
     version: z.coerce.number().int().positive(),
     note: z.string().trim().min(3).max(240),
   }),
+  z.object({
+    operation: z.literal("confirm-bank-transfer"),
+    orderId: identifier,
+    version: z.coerce.number().int().positive(),
+    note: z.string().trim().min(3).max(240),
+  }),
+  z.object({
+    operation: z.literal("refund"),
+    paymentId: z.string().uuid(),
+    amountVnd: z.coerce.number().int().positive().max(2_147_483_647),
+    reason: z.string().trim().min(3).max(240),
+    reference: z.string().trim().max(120).optional(),
+  }),
+]);
+
+export const registrationMutationSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.literal("check-in"),
+    registrationId: identifier,
+    version: z.coerce.number().int().positive(),
+    note: z.string().trim().max(240).optional(),
+  }),
+  z.object({
+    operation: z.literal("cancel"),
+    registrationId: identifier,
+    version: z.coerce.number().int().positive(),
+    note: z.string().trim().max(240).optional(),
+  }),
+  z.object({
+    operation: z.literal("settle-fee"),
+    registrationId: identifier,
+    version: z.coerce.number().int().positive(),
+    paymentStatus: z.enum(["PAID", "WAIVED"]),
+  }),
+]);
+
+export const couponMutationSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.literal("create"),
+    code: z.string().trim().min(3).max(32),
+    kind: z.enum(["PERCENT", "FIXED"]),
+    value: z.coerce.number().int().positive().max(100_000_000),
+    minOrderVnd: z.coerce.number().int().min(0).max(2_147_483_647),
+    maxDiscountVnd: optionalCount,
+    startsAt: optionalDate,
+    endsAt: optionalDate,
+    usageLimit: optionalCount,
+    note: z.string().trim().max(240).optional(),
+  }),
+  z.object({
+    operation: z.literal("set-status"),
+    couponId: identifier,
+    version: z.coerce.number().int().positive(),
+    status: z.enum(["ACTIVE", "DISABLED"]),
+  }),
+]);
+
+export const reviewMutationSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.literal("publish"),
+    reviewId: identifier,
+  }),
+  z.object({
+    operation: z.literal("reject"),
+    reviewId: identifier,
+    note: z.string().trim().max(240).optional(),
+  }),
 ]);
 
 const dateTime = z.string().trim().min(1).transform((value, context) => {

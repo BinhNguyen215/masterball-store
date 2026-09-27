@@ -21,16 +21,19 @@ import {
   updateProduct,
   updateProductVariant,
 } from "@/modules/catalog";
+import { createCoupon, setCouponStatus } from "@/modules/coupons";
 import { processEmailOutbox } from "@/modules/email";
 import { adjustInventory, listAdminInventory } from "@/modules/inventory";
-import { expirePendingOrders, listAdminOrders, settleCashPayment, transitionOrder } from "@/modules/orders";
+import { setReviewStatus } from "@/modules/reviews";
+import { expirePendingOrders, listAdminOrders, settleBankTransferPayment, settleCashPayment, transitionOrder } from "@/modules/orders";
 import {
   inspectVnpayReturn,
   listAdminPayments,
   processVnpayIpn,
   reconcilePaymentByQuery,
+  refundPayment,
 } from "@/modules/payments";
-import { createTournament, listAdminTournaments, publishScheduledTournaments, transitionTournament, updateTournament } from "@/modules/tournaments";
+import { createTournament, listAdminTournaments, publishScheduledTournaments, setRegistrationStatus, settleRegistrationFee, transitionTournament, updateTournament } from "@/modules/tournaments";
 
 export type AdminResource =
   | "products"
@@ -101,6 +104,13 @@ export type AdminApplication = {
   transitionOrder(input: Record<string, unknown>, actorId: string): Promise<void>;
   reconcilePayment(input: Record<string, unknown>, actorId: string, ipAddress: string): Promise<void>;
   settleCashPayment(input: Record<string, unknown>, actorId: string): Promise<void>;
+  settleBankTransferPayment(input: Record<string, unknown>, actorId: string): Promise<void>;
+  refundPayment(input: Record<string, unknown>, actorId: string): Promise<{ replayed: boolean }>;
+  setRegistrationStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
+  settleRegistrationFee(input: Record<string, unknown>, actorId: string): Promise<void>;
+  createCoupon(input: Record<string, unknown>, actorId: string): Promise<void>;
+  setCouponStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
+  setReviewStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
   createTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
   updateTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
   setTournamentStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
@@ -317,7 +327,36 @@ const orderCreatedPayloadSchema = z.object({
   orderUrl: z.url().max(500).optional(),
 }).refine((value) => value.totalVnd !== undefined || value.amountVnd !== undefined);
 
+const restockPayloadSchema = z.object({
+  productTitle: z.string().min(1).max(250),
+  variantLabel: z.string().min(1).max(250),
+  sku: z.string().min(1).max(200),
+  productUrl: z.url().max(500).optional(),
+});
+
 async function sendTransactionalEmail(message: { recipient: string; template: string; payload: Record<string, unknown> }) {
+  const environment = getEmailEnvironment();
+  const transport = nodemailer.createTransport({
+    host: environment.SMTP_HOST,
+    port: environment.SMTP_PORT,
+    secure: environment.SMTP_PORT === 465,
+    auth: { user: environment.SMTP_USER, pass: environment.SMTP_PASSWORD },
+  });
+
+  if (message.template === "restock-available") {
+    const restock = restockPayloadSchema.parse(message.payload);
+    const restockUrlLine = restock.productUrl
+      ? `\n\nXem sản phẩm: ${restock.productUrl}`
+      : "";
+    await transport.sendMail({
+      from: environment.EMAIL_FROM,
+      to: message.recipient,
+      subject: `MasterBall Store – ${restock.productTitle} đã có hàng`,
+      text: `Mặt hàng bạn đăng ký nhận thông báo đã có tồn kho trở lại.\n\nSản phẩm: ${restock.productTitle}\nPhiên bản: ${restock.variantLabel}\nMã hàng: ${restock.sku}${restockUrlLine}`,
+    });
+    return;
+  }
+
   if (message.template !== "order-created" && message.template !== "payment-paid") {
     throw new Error("Unsupported transactional email template.");
   }
@@ -326,13 +365,6 @@ async function sendTransactionalEmail(message: { recipient: string; template: st
   const orderUrlLine = payload.orderUrl
     ? `\n\nTheo dõi trạng thái đơn: ${payload.orderUrl}`
     : "";
-  const environment = getEmailEnvironment();
-  const transport = nodemailer.createTransport({
-    host: environment.SMTP_HOST,
-    port: environment.SMTP_PORT,
-    secure: environment.SMTP_PORT === 465,
-    auth: { user: environment.SMTP_USER, pass: environment.SMTP_PASSWORD },
-  });
   await transport.sendMail({
     from: environment.EMAIL_FROM,
     to: message.recipient,
@@ -467,6 +499,92 @@ export const adminApplication: AdminApplication = {
       expectedVersion: Number(input.version),
       actorId,
       note: String(input.note),
+    });
+  },
+  settleBankTransferPayment: async (input, actorId) => {
+    await settleBankTransferPayment({
+      orderId: String(input.orderId),
+      expectedVersion: Number(input.version),
+      actorId,
+      note: String(input.note),
+    });
+  },
+  refundPayment: async (input, actorId) => {
+    const result = await refundPayment({
+      paymentId: String(input.paymentId),
+      amountVnd: Number(input.amountVnd),
+      reason: String(input.reason),
+      actorId,
+      ...(input.reference ? { reference: String(input.reference) } : {}),
+    });
+    return { replayed: result.replayed };
+  },
+  setRegistrationStatus: async (input, actorId) => {
+    await setRegistrationStatus({
+      registrationId: String(input.registrationId),
+      expectedVersion: Number(input.version),
+      actorId,
+      toStatus: input.toStatus === "CHECKED_IN" ? "CHECKED_IN" : "CANCELLED",
+      note: input.note ? String(input.note) : null,
+    });
+  },
+  settleRegistrationFee: async (input, actorId) => {
+    await settleRegistrationFee({
+      registrationId: String(input.registrationId),
+      expectedVersion: Number(input.version),
+      actorId,
+      paymentStatus: input.paymentStatus === "WAIVED" ? "WAIVED" : "PAID",
+    });
+  },
+  createCoupon: async (input, actorId) => {
+    const rawMaxDiscount = input.maxDiscountVnd;
+    const rawUsageLimit = input.usageLimit;
+    // The form collects calendar days, so the window opens at the start of that
+    // Vietnam day and closes at the end of it; a bare `YYYY-MM-DD` would parse
+    // as UTC midnight and shift the whole window seven hours.
+    const vietnamDayStart = (value: unknown) =>
+      new Date(`${String(value)}T00:00:00+07:00`);
+    const vietnamDayEnd = (value: unknown) =>
+      new Date(`${String(value)}T23:59:59.999+07:00`);
+    await createCoupon(
+      {
+        code: String(input.code),
+        kind: input.kind === "FIXED" ? "FIXED" : "PERCENT",
+        value: Number(input.value),
+        minOrderVnd: Number(input.minOrderVnd ?? 0),
+        maxDiscountVnd:
+          rawMaxDiscount === undefined ||
+          rawMaxDiscount === null ||
+          rawMaxDiscount === ""
+            ? null
+            : Number(rawMaxDiscount),
+        startsAt: input.startsAt ? vietnamDayStart(input.startsAt) : null,
+        endsAt: input.endsAt ? vietnamDayEnd(input.endsAt) : null,
+        usageLimit:
+          rawUsageLimit === undefined ||
+          rawUsageLimit === null ||
+          rawUsageLimit === ""
+            ? null
+            : Number(rawUsageLimit),
+        note: input.note ? String(input.note) : null,
+      },
+      actorId,
+    );
+  },
+  setCouponStatus: async (input, actorId) => {
+    await setCouponStatus({
+      couponId: String(input.couponId),
+      expectedVersion: Number(input.version),
+      status: input.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+      actorId,
+    });
+  },
+  setReviewStatus: async (input, actorId) => {
+    await setReviewStatus({
+      reviewId: String(input.reviewId),
+      status: input.operation === "publish" ? "PUBLISHED" : "REJECTED",
+      actorId,
+      note: input.note ? String(input.note) : null,
     });
   },
   createTournament: async (input, actorId) => {

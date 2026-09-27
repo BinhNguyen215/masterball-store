@@ -42,6 +42,9 @@ const groups: { title: string; checks: ConfigurationCheck[] }[] = [
       { key: "VNPAY_PAYMENT_URL", label: "VNPAY payment URL (sandbox hay production)", required: true },
       { key: "VNPAY_RETURN_URL", label: "VNPAY return URL", required: true },
       { key: "VNPAY_API_URL", label: "VNPAY QueryDr URL", required: true },
+      { key: "BANK_TRANSFER_BANK_ID", label: "VietQR mã ngân hàng (ví dụ VCB)", note: "Khi trống, phương thức chuyển khoản bị ẩn khỏi checkout", required: false },
+      { key: "BANK_TRANSFER_ACCOUNT_NO", label: "Số tài khoản nhận tiền", required: false },
+      { key: "BANK_TRANSFER_ACCOUNT_NAME", label: "Tên chủ tài khoản", required: false },
     ],
   },
   {
@@ -85,16 +88,16 @@ export default async function SettingsPage() {
           </p>
         </div>
       ) : null}
-      <div className="grid gap-5">
+      <div className="grid gap-6">
         {groups.map((group) => (
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" key={group.title}>
-            <h2 className="border-b border-slate-100 px-5 py-4 text-lg font-black text-slate-900">{group.title}</h2>
+            <h2 className="border-b border-slate-100 px-6 py-4 text-lg font-bold text-slate-900">{group.title}</h2>
             <ul className="divide-y divide-slate-100">
               {group.checks.map((check) => {
                 const configured = Boolean(process.env[check.key]?.trim());
                 const critical = check.required && !configured;
                 return (
-                  <li className="flex items-center justify-between gap-4 px-5 py-4" key={check.key}>
+                  <li className="flex items-center justify-between gap-4 px-6 py-4" key={check.key}>
                     <div>
                       <p className="font-bold text-slate-900">{check.label}</p>
                       <p className="text-xs text-slate-500">
@@ -102,7 +105,7 @@ export default async function SettingsPage() {
                         {check.note ? ` · ${check.note}` : ""}
                       </p>
                     </div>
-                    <span className={critical ? "rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-800" : configured ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800" : "rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900"}>
+                    <span className={critical ? "rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800" : configured ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800" : "rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900"}>
                       {configured ? "Đã cấu hình" : critical ? "Thiếu (bắt buộc)" : "Chưa cấu hình"}
                     </span>
                   </li>

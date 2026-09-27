@@ -5,10 +5,13 @@ import { headers } from "next/headers";
 import { adminApplication, IntegrationUnavailableError, scheduledJobSchema } from "@/modules/auth/admin-application";
 import { authorize, AuthorizationError } from "@/modules/auth/guards";
 import {
+  couponMutationSchema,
   inventoryMutationSchema,
   orderMutationSchema,
   paymentMutationSchema,
   productMutationSchema,
+  registrationMutationSchema,
+  reviewMutationSchema,
   tournamentMutationSchema,
 } from "@/modules/auth/schemas";
 import type { MutationState } from "@/components/admin/mutation-form";
@@ -121,6 +124,23 @@ export async function paymentAction(_state: MutationState, formData: FormData): 
       revalidatePath("/admin/orders");
       return { ok: true, message: "Đã ghi nhận thu tiền mặt cho đơn COD." };
     }
+    if (input.operation === "confirm-bank-transfer") {
+      await adminApplication.settleBankTransferPayment(input, actor.id);
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/orders");
+      return { ok: true, message: "Đã xác nhận chuyển khoản cho đơn hàng." };
+    }
+    if (input.operation === "refund") {
+      const result = await adminApplication.refundPayment(input, actor.id);
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/orders");
+      return {
+        ok: true,
+        message: result.replayed
+          ? "Khoản hoàn tiền này đã được ghi nhận trước đó, không ghi thêm."
+          : "Đã ghi nhận hoàn tiền.",
+      };
+    }
     await adminApplication.reconcilePayment(
       input,
       actor.id,
@@ -128,6 +148,56 @@ export async function paymentAction(_state: MutationState, formData: FormData): 
     );
     revalidatePath("/admin/payments");
     return { ok: true, message: "Đã yêu cầu đối soát an toàn." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function registrationAction(_state: MutationState, formData: FormData): Promise<MutationState> {
+  try {
+    const actor = await authorize("registrations.manage");
+    const input = registrationMutationSchema.parse(values(formData));
+    if (input.operation === "settle-fee") {
+      await adminApplication.settleRegistrationFee(input, actor.id);
+    } else {
+      await adminApplication.setRegistrationStatus(
+        {
+          ...input,
+          toStatus: input.operation === "check-in" ? "CHECKED_IN" : "CANCELLED",
+        },
+        actor.id,
+      );
+    }
+    revalidatePath("/admin/registrations");
+    return { ok: true, message: SUCCESS };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function couponAction(_state: MutationState, formData: FormData): Promise<MutationState> {
+  try {
+    const actor = await authorize("coupons.write");
+    const input = couponMutationSchema.parse(values(formData));
+    if (input.operation === "create") {
+      await adminApplication.createCoupon(input, actor.id);
+    } else {
+      await adminApplication.setCouponStatus(input, actor.id);
+    }
+    revalidatePath("/admin/coupons");
+    return { ok: true, message: SUCCESS };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function reviewAction(_state: MutationState, formData: FormData): Promise<MutationState> {
+  try {
+    const actor = await authorize("reviews.moderate");
+    const input = reviewMutationSchema.parse(values(formData));
+    await adminApplication.setReviewStatus(input, actor.id);
+    revalidatePath("/admin/reviews");
+    return { ok: true, message: SUCCESS };
   } catch (error) {
     return failure(error);
   }

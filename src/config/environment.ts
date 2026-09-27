@@ -74,6 +74,12 @@ const jobsSchema = z.object({
   CRON_SECRET: strongSecret,
 });
 
+const bankTransferSchema = z.object({
+  BANK_TRANSFER_BANK_ID: requiredText,
+  BANK_TRANSFER_ACCOUNT_NO: requiredText,
+  BANK_TRANSFER_ACCOUNT_NAME: requiredText,
+});
+
 function parseEnvironment<T extends z.ZodType>(
   name: string,
   schema: T,
@@ -108,3 +114,6 @@ export const getStorageEnvironment = () =>
 export const getEmailEnvironment = () => parseEnvironment("email", emailSchema);
 
 export const getJobsEnvironment = () => parseEnvironment("jobs", jobsSchema);
+
+export const getBankTransferEnvironment = () =>
+  parseEnvironment("bank transfer", bankTransferSchema);
