@@ -24,6 +24,10 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
+// Only `/admin` needs the proxy: the security headers are also set by
+// `next.config.ts` `headers()` for `/(.*)`, and every API route authorizes
+// itself. Matching `/api/:path*` would make Next buffer each request body
+// (default 10 MB, silently truncated) on top of the app's own multipart ceiling.
 export const config = {
-  matcher: ["/admin/:path*", "/api/:path*"],
+  matcher: ["/admin/:path*"],
 };

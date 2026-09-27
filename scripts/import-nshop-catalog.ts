@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { closeDb, getDb } from "../src/db/index";
 import { games, inventories, productVariants, products } from "../src/db/schema";
 import { appendAuditLog } from "../src/modules/audit";
+import { assertRemoteDatabaseBackupReference } from "./backup-gate";
 
 
 const MAX_SNAPSHOT_BYTES = 20 * 1024 * 1024;
@@ -80,10 +81,8 @@ function loadEnvironment() {
 }
 
 function verifyCommitGate(commit: boolean) {
-  if (!commit || process.env.NODE_ENV !== "production") return;
-  if (!process.env.MIGRATION_BACKUP_REFERENCE?.trim()) {
-    throw new Error("Production import blocked: create and verify a backup, then set MIGRATION_BACKUP_REFERENCE.");
-  }
+  if (!commit) return;
+  assertRemoteDatabaseBackupReference(process.env.DATABASE_URL, "Catalog import");
 }
 
 function plainText(value: string): string {

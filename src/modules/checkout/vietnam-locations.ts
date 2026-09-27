@@ -10,6 +10,8 @@ import { z } from "zod";
  */
 const PROVINCES_URL = "https://provinces.open-api.vn/api/v2/p/";
 const REVALIDATE_SECONDS = 86_400;
+/** Keeps checkout rendering bounded when the upstream dataset is hung. */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 const provinceSchema = z.object({
   code: z.number().int().positive(),
@@ -24,6 +26,7 @@ export async function listVietnamProvinces(): Promise<VietnamProvince[]> {
     const response = await fetch(PROVINCES_URL, {
       headers: { accept: "application/json" },
       next: { revalidate: REVALIDATE_SECONDS },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) return [];
 

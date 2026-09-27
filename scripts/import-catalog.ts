@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { closeDb } from "../src/db/index";
 import { importProductsCsv } from "../src/modules/catalog/catalog-import";
+import { assertRemoteDatabaseBackupReference } from "./backup-gate";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 
@@ -43,12 +44,8 @@ function parseArguments(values: string[]): Arguments {
 }
 
 function verifyCommitGate(commit: boolean) {
-  if (!commit || process.env.NODE_ENV !== "production") return;
-  if (!process.env.MIGRATION_BACKUP_REFERENCE?.trim()) {
-    throw new Error(
-      "Production import blocked: create and verify a backup, then set MIGRATION_BACKUP_REFERENCE.",
-    );
-  }
+  if (!commit) return;
+  assertRemoteDatabaseBackupReference(process.env.DATABASE_URL, "Catalog import");
 }
 
 async function main() {

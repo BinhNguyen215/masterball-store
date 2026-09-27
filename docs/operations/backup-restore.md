@@ -2,7 +2,7 @@
 
 ## Safety boundary
 
-Production migration and large catalog import require a verified backup first. `scripts/migrate-database.ts` enforces a production backup reference but cannot prove the artifact is restorable; the operator owns that verification.
+Production migration and large catalog import require a verified backup first. `scripts/backup-gate.ts` blocks `scripts/migrate-database.ts`, `scripts/import-catalog.ts --commit`, and `scripts/import-nshop-catalog.ts --commit` whenever `DATABASE_URL` does not point at a loopback host and `MIGRATION_BACKUP_REFERENCE` is unset. The gate is keyed on the database target, not `NODE_ENV`, because developer shells and the `.env.local` written by the Vercel CLI report `development` even when the URL targets production. It cannot prove the artifact is restorable; the operator owns that verification.
 
 Never restore into production as a rehearsal. Use a new isolated database with credentials that cannot access production.
 
