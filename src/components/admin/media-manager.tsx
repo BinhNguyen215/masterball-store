@@ -88,7 +88,7 @@ function MediaRow({
       <div className="grid content-start gap-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
           {asset.isPrimary ? (
-            <span className="rounded-full bg-purple-100 px-2.5 py-1 font-bold text-purple-800">
+            <span className="rounded-full bg-purple-100 px-3 py-1 font-bold text-purple-800">
               Ảnh chính · thứ tự 0
             </span>
           ) : null}
@@ -196,27 +196,27 @@ export function MediaManager({ maxBytes }: { maxBytes: number }) {
   }
 
   return (
-    <section className="mt-7 grid gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="mt-8 grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h2 className="text-lg font-black">Gallery sản phẩm</h2>
+        <h2 className="text-lg font-bold">Gallery sản phẩm</h2>
         <p className="mt-1 text-sm text-slate-500">
           Ảnh raster tối đa {maxMegabytes} MB. Thứ tự 0 luôn là ảnh chính; tên tệp phía client không được dùng làm object key.
         </p>
       </div>
-      <label className="grid gap-1.5 text-sm font-semibold text-slate-800">
+      <label className="grid gap-2 text-sm font-semibold text-slate-800">
         Mã sản phẩm
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             value={productId}
             onChange={(event) => setProductId(event.target.value)}
             required
-            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200"
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-3 font-normal outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200"
           />
           <button
             type="button"
             disabled={pending || !productId.trim()}
             onClick={refresh}
-            className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white disabled:opacity-50"
+            className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-50"
           >
             Tải gallery
           </button>
@@ -224,7 +224,7 @@ export function MediaManager({ maxBytes }: { maxBytes: number }) {
       </label>
       <form onSubmit={upload} className="grid gap-4 rounded-2xl bg-slate-50 p-4 md:grid-cols-2">
         <input type="hidden" name="productId" value={productId} />
-        <label className="grid gap-1.5 text-sm font-semibold text-slate-800">
+        <label className="grid gap-2 text-sm font-semibold text-slate-800">
           Ảnh
           <input
             name="file"
@@ -234,17 +234,17 @@ export function MediaManager({ maxBytes }: { maxBytes: number }) {
             className="rounded-xl border border-slate-300 bg-white p-3 font-normal"
           />
         </label>
-        <label className="grid gap-1.5 text-sm font-semibold text-slate-800">
+        <label className="grid gap-2 text-sm font-semibold text-slate-800">
           Variant ID (không bắt buộc)
-          <input name="variantId" className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+          <input name="variantId" className="rounded-xl border border-slate-300 bg-white px-3 py-3 font-normal" />
         </label>
-        <label className="grid gap-1.5 text-sm font-semibold text-slate-800 md:col-span-2">
+        <label className="grid gap-2 text-sm font-semibold text-slate-800 md:col-span-2">
           Alt text
-          <input name="altText" required maxLength={500} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+          <input name="altText" required maxLength={500} className="rounded-xl border border-slate-300 bg-white px-3 py-3 font-normal" />
         </label>
         <button
           disabled={pending || !productId.trim()}
-          className="justify-self-start rounded-xl bg-purple-700 px-5 py-2.5 font-bold text-white disabled:opacity-50"
+          className="justify-self-start rounded-xl bg-purple-700 px-6 py-3 font-bold text-white disabled:opacity-50"
         >
           {pending ? "Đang xử lý…" : "Tải ảnh lên"}
         </button>

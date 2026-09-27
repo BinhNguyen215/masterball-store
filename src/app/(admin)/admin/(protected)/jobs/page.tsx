@@ -32,7 +32,7 @@ export default async function JobsPage() {
         title="Tác vụ định kỳ"
         description="Ba tác vụ idempotent của hệ thống. Có thể chạy tay tại đây khi cần xử lý sự cố; scheduler bên ngoài gọi cùng endpoint bằng Bearer CRON_SECRET."
       />
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm">
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 text-sm shadow-sm">
         <p className="font-bold text-slate-900">
           CRON_SECRET: {cronConfigured ? "đã cấu hình" : "chưa cấu hình"}
         </p>
@@ -42,11 +42,11 @@ export default async function JobsPage() {
             : "Chưa cấu hình CRON_SECRET nên endpoint trả 503; nút chạy tay dưới đây vẫn dùng được."}
         </p>
       </div>
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         {SCHEDULED_JOBS.map((job) => (
           <MutationForm action={runJobAction} key={job} submitLabel="Chạy ngay">
             <input type="hidden" name="job" value={job} />
-            <h2 className="text-lg font-black">{jobCopy[job].label}</h2>
+            <h2 className="text-lg font-bold">{jobCopy[job].label}</h2>
             <p className="text-xs text-slate-500">{jobCopy[job].description}</p>
             <p className="font-mono text-xs text-slate-500">POST {jobCopy[job].endpoint}</p>
           </MutationForm>

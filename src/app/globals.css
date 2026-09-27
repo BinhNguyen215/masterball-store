@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/storefront-catalog.css";
 
 *,
 *::before,
@@ -27,7 +28,7 @@ body {
   font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.65;
-  letter-spacing: 0.01em;
+  letter-spacing: var(--tracking-base);
   text-rendering: optimizeLegibility;
 }
 
@@ -68,7 +69,7 @@ h3 {
   font-family: var(--font-display);
   font-weight: 700;
   line-height: 0.98;
-  letter-spacing: 0.01em;
+  letter-spacing: var(--tracking-base);
   text-wrap: balance;
 }
 
@@ -86,7 +87,7 @@ p {
   top: var(--space-3);
   left: var(--space-3);
   z-index: 1000;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   padding: var(--space-2) var(--space-4);
   transform: translateY(calc(-100% - var(--space-6)));
   border-radius: var(--radius-sm);
@@ -132,7 +133,7 @@ p {
 .brand-link {
   display: inline-flex;
   min-width: 0;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   align-items: center;
   gap: var(--space-3);
   text-decoration: none;
@@ -152,7 +153,7 @@ p {
 .brand-wordmark strong {
   font-family: var(--font-display);
   font-size: var(--text-lg);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -161,7 +162,7 @@ p {
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
@@ -221,13 +222,13 @@ p {
 .locale-option {
   padding: var(--space-1) var(--space-3);
   border: 0;
-  border-radius: calc(var(--radius-sm) - 0.15rem);
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: var(--text-xs);
-  font-weight: 750;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: var(--tracking-snug);
   text-transform: uppercase;
 }
 
@@ -253,14 +254,14 @@ p {
 .cart-link,
 .mobile-nav summary {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
   transition:
     color var(--duration-base) var(--ease-out-quart),
@@ -285,7 +286,7 @@ p {
 }
 
 .cart-link {
-  width: 2.75rem;
+  width: var(--tap-target);
 }
 
 .cart-link:hover,
@@ -305,7 +306,7 @@ p {
 }
 
 .mobile-nav summary {
-  width: 2.75rem;
+  width: var(--tap-target);
   cursor: pointer;
   list-style: none;
 }
@@ -383,8 +384,8 @@ p {
   margin: 0;
   color: var(--color-cyan-strong);
   font-size: var(--text-xs);
-  font-weight: 750;
-  letter-spacing: 0.11em;
+  font-weight: 700;
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
 }
 
@@ -397,6 +398,20 @@ p {
 
 .hero-title span {
   color: var(--color-plasma-strong);
+}
+
+/* The subtitle sits inside the display heading, so it needs its own readable
+   size instead of the browser's `smaller` default. */
+.hero-title small {
+  display: block;
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-base);
+  line-height: 1.4;
+  text-transform: none;
 }
 
 .hero-description {
@@ -417,7 +432,7 @@ p {
 .button-link,
 .button {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   padding: var(--space-3) var(--space-6);
   align-items: center;
   justify-content: center;
@@ -426,7 +441,7 @@ p {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: 750;
+  font-weight: 700;
   text-decoration: none;
   transition:
     transform var(--duration-fast) var(--ease-out-quart),
@@ -546,7 +561,7 @@ p {
 
 .category-link strong {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 7vw, 4.5rem);
+  font-size: var(--text-3xl);
   line-height: 1;
   text-transform: uppercase;
   transition: color var(--duration-base) var(--ease-out-quart);
@@ -654,7 +669,7 @@ p {
 
 .breadcrumb a {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   align-items: center;
 }
 
@@ -685,8 +700,8 @@ p {
 .payment-methods {
   display: grid;
   gap: 0;
-  border: 1px solid var(--color-border, #d5d8e2);
-  border-radius: 0.8rem;
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -697,9 +712,9 @@ p {
 .payment-method {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  border-top: 1px solid var(--color-border, #d5d8e2);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
   cursor: pointer;
 }
 
@@ -716,9 +731,9 @@ p {
   width: 2rem;
   height: 2rem;
   place-items: center;
-  border: 1px solid var(--color-border, #d5d8e2);
-  border-radius: 0.45rem;
-  font-size: 1.15rem;
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
 }
 
 .payment-method strong,
@@ -728,9 +743,9 @@ p {
 }
 
 .payment-method small {
-  margin-top: 0.15rem;
-  color: var(--color-muted, #667085);
-  font-size: 0.78rem;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 .payment-method--disabled {
@@ -749,7 +764,7 @@ p {
 
 .filter-more summary {
   display: flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   cursor: pointer;
   align-items: center;
   color: var(--text-primary);
@@ -776,8 +791,8 @@ p {
   margin-bottom: var(--space-2);
   color: var(--color-cyan-strong);
   font-size: var(--text-xs);
-  font-weight: 750;
-  letter-spacing: 0.11em;
+  font-weight: 700;
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
 }
 
@@ -795,13 +810,13 @@ p {
 .field select,
 .field textarea {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-elevated);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: var(--text-base);
   transition:
     border-color var(--duration-base) var(--ease-out-quart),
     background-color var(--duration-base) var(--ease-out-quart);
@@ -839,7 +854,7 @@ p {
 
 .consent-field input {
   flex: 0 0 auto;
-  margin-top: 0.2rem;
+  margin-top: var(--space-1);
 }
 
 .consent-field a {
@@ -860,7 +875,7 @@ p {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin-top: 2rem;
+  margin-top: var(--space-8);
 }
 
 .catalog-results-header h2 {
@@ -998,7 +1013,7 @@ p {
 
 .text-link {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   margin-top: var(--space-6);
   align-items: center;
   gap: var(--space-2);
@@ -1306,13 +1321,13 @@ p {
 
 .cart-item-actions input[type="number"] {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-elevated);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .state-screen {
@@ -1381,7 +1396,7 @@ p {
 
 .policy-nav a {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   align-items: center;
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -1437,7 +1452,7 @@ p {
 
 .footer-nav a {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   align-items: center;
   color: var(--text-secondary);
   text-decoration: none;
@@ -1450,6 +1465,43 @@ p {
 .footer-nav a:focus-visible {
   color: var(--color-cyan-strong);
   transform: translateX(var(--space-1));
+}
+
+/* Store identity block: the legally required contact details. */
+.footer-contact {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.footer-contact h2 {
+  margin-bottom: var(--space-4);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.footer-contact ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.footer-contact li {
+  overflow-wrap: anywhere;
+}
+
+.footer-contact a {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  color: var(--color-cyan-strong);
+  text-decoration: none;
 }
 
 .footer-bottom {

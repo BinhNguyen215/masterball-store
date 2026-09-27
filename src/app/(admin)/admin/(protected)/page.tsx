@@ -19,8 +19,8 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.filter((card) => ROLE_CAPABILITIES[actor.role].has(card[2])).map(([label, href]) => (
           <Link key={href} href={href} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-md">
-            <span className="text-lg font-black text-slate-900">{label}</span>
-            <span className="mt-5 block text-sm font-bold text-purple-700 group-hover:text-purple-900">Mở khu vực →</span>
+            <span className="text-lg font-bold text-slate-900">{label}</span>
+            <span className="mt-6 block text-sm font-bold text-purple-700 group-hover:text-purple-900">Mở khu vực →</span>
           </Link>
         ))}
       </div>

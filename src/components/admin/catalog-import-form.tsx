@@ -53,8 +53,8 @@ export function CatalogImportForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-7 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div><h2 className="text-lg font-black">Import catalog CSV</h2><p className="mt-1 text-sm text-slate-500">Luôn chạy dry-run và rà soát lỗi theo dòng trước khi bỏ chọn tùy chọn này.</p></div>
+    <form onSubmit={submit} className="mt-8 grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div><h2 className="text-lg font-bold">Import catalog CSV</h2><p className="mt-1 text-sm text-slate-500">Luôn chạy dry-run và rà soát lỗi theo dòng trước khi bỏ chọn tùy chọn này.</p></div>
       <input name="csv" type="file" accept=".csv,text/csv" required className="block w-full rounded-xl border border-slate-300 p-3 text-sm" />
       <label className="flex items-center gap-2 text-sm font-semibold"><input name="dryRun" type="checkbox" defaultChecked className="size-4" /> Chỉ kiểm tra, chưa ghi dữ liệu</label>
       {message ? <p role="status" className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">{message}</p> : null}
@@ -71,7 +71,7 @@ export function CatalogImportForm() {
           {errors.length > 100 ? <p className="mt-2">Còn {errors.length - 100} lỗi khác. Hãy sửa các lỗi đầu rồi chạy lại dry-run.</p> : null}
         </div>
       ) : null}
-      <button disabled={pending} type="submit" className="justify-self-start rounded-xl bg-slate-900 px-5 py-2.5 font-bold text-white disabled:cursor-wait disabled:opacity-60">{pending ? "Đang kiểm tra…" : "Xử lý CSV"}</button>
+      <button disabled={pending} type="submit" className="justify-self-start rounded-xl bg-slate-900 px-6 py-3 font-bold text-white disabled:cursor-wait disabled:opacity-60">{pending ? "Đang kiểm tra…" : "Xử lý CSV"}</button>
     </form>
   );
 }

@@ -15,13 +15,13 @@ export function AdminTable({ data, emptyMessage }: { data: AdminList; emptyMessa
       <table className="w-full min-w-[48rem] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            {data.columns.map((column) => <th key={column.key} scope="col" className="px-5 py-4 font-bold">{column.label}</th>)}
+            {data.columns.map((column) => <th key={column.key} scope="col" className="px-6 py-4 font-bold">{column.label}</th>)}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {data.items.map((item) => (
             <tr key={item.id} className="hover:bg-slate-50/70">
-              {data.columns.map((column) => <td key={column.key} className="px-5 py-4 text-slate-700">{item.cells[column.key] ?? "—"}</td>)}
+              {data.columns.map((column) => <td key={column.key} className="px-6 py-4 text-slate-700">{item.cells[column.key] ?? "—"}</td>)}
             </tr>
           ))}
         </tbody>

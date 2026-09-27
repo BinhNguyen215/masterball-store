@@ -47,7 +47,10 @@ export async function ResourcePanel({
     : searchParams.page;
   const page = Math.max(1, Number(rawPage) || 1);
   const pageSize = 50;
-  const totalPages = Math.max(1, Math.ceil(data.total / pageSize));
+  // `total` is counted one row past the requested page so a list never scans
+  // the whole table for a number the panel only uses to offer "next"; it is
+  // therefore a lower bound, and the label must not promise an exact count.
+  const hasNextPage = data.total > page * pageSize;
   const href = (targetPage: number) => {
     const query = toUrlSearchParams(searchParams);
     query.set("page", String(targetPage));
@@ -57,15 +60,15 @@ export async function ResourcePanel({
   return (
     <div className="grid gap-4">
       <AdminTable data={data} emptyMessage={emptyMessage} />
-      {data.total > pageSize ? (
+      {page > 1 || hasNextPage ? (
         <nav className="flex items-center justify-between gap-4" aria-label={`Phân trang ${label}`}>
           {page > 1 ? (
             <Link className="rounded-xl border border-slate-300 px-4 py-2 font-bold text-slate-700" href={href(page - 1)}>
               Trang trước
             </Link>
           ) : <span />}
-          <span className="text-sm text-slate-600">Trang {Math.min(page, totalPages)} / {totalPages}</span>
-          {page < totalPages ? (
+          <span className="text-sm text-slate-600">Trang {page}</span>
+          {hasNextPage ? (
             <Link className="rounded-xl border border-slate-300 px-4 py-2 font-bold text-slate-700" href={href(page + 1)}>
               Trang sau
             </Link>

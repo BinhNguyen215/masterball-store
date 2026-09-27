@@ -8,7 +8,7 @@ export function TournamentEditForm() {
   return (
     <MutationForm action={tournamentAction} submitLabel="Lưu thay đổi">
       <input type="hidden" name="operation" value="update-tournament" />
-      <h2 className="text-lg font-black">Sửa thông báo đã tạo</h2>
+      <h2 className="text-lg font-bold">Sửa thông báo đã tạo</h2>
       <p className="text-xs text-slate-500">
         Bản nháp, đã lên lịch và đã xuất bản đều sửa được; thông báo đã lưu trữ thì không. Slug và game giữ nguyên.
       </p>

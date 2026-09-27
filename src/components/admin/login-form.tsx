@@ -32,7 +32,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-5" aria-describedby={error ? "login-error" : undefined}>
+    <form onSubmit={submit} className="grid gap-6" aria-describedby={error ? "login-error" : undefined}>
       <label className="grid gap-2 text-sm font-semibold text-slate-800">
         Email quản trị
         <input
@@ -68,7 +68,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-purple-700 px-5 py-3 font-bold text-white transition hover:bg-purple-800 disabled:cursor-wait disabled:opacity-60"
+        className="rounded-xl bg-purple-700 px-6 py-3 font-bold text-white transition hover:bg-purple-800 disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? "Đang xác thực…" : "Đăng nhập"}
       </button>

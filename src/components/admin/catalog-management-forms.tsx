@@ -94,10 +94,10 @@ function VariantFields({ includeStatus = false }: { includeStatus?: boolean }) {
 
 export function CatalogManagementForms() {
   return (
-    <div className="mt-7 grid gap-8">
+    <div className="mt-8 grid gap-8">
       <section>
-        <h2 className="mb-4 text-xl font-black">Game, set và tag</h2>
-        <div className="grid gap-5 xl:grid-cols-2">
+        <h2 className="mb-4 text-xl font-bold">Game, set và tag</h2>
+        <div className="grid gap-6 xl:grid-cols-2">
           <MutationForm action={productAction} submitLabel="Tạo game">
             <input type="hidden" name="operation" value="create-game" />
             <Field label="Tên game"><input className={inputClassName} name="name" required maxLength={120} /></Field>
@@ -135,8 +135,8 @@ export function CatalogManagementForms() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-xl font-black">Sản phẩm</h2>
-        <div className="grid gap-5 xl:grid-cols-2">
+        <h2 className="mb-4 text-xl font-bold">Sản phẩm</h2>
+        <div className="grid gap-6 xl:grid-cols-2">
           <MutationForm action={productAction} submitLabel="Tạo bản nháp">
             <input type="hidden" name="operation" value="create" />
             <ProductFields />
@@ -158,8 +158,8 @@ export function CatalogManagementForms() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-xl font-black">Biến thể và giá</h2>
-        <div className="grid gap-5 xl:grid-cols-2">
+        <h2 className="mb-4 text-xl font-bold">Biến thể và giá</h2>
+        <div className="grid gap-6 xl:grid-cols-2">
           <MutationForm action={productAction} submitLabel="Tạo biến thể">
             <input type="hidden" name="operation" value="create-variant" />
             <Field label="Mã sản phẩm"><input className={inputClassName} name="productId" required {...idInputProps} /></Field>
