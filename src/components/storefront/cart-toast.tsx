@@ -27,6 +27,15 @@ export function CartToast({
   const pathname = usePathname();
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
+  // A new notice arrives as the same mounted component (the add-to-cart action
+  // only soft-navigates), so the previous dismissal has to be forgotten when the
+  // server asks again — otherwise the second add on a page shows nothing. This
+  // is React's documented "adjust state when a prop changes" reset.
+  const [previousShow, setPreviousShow] = useState(show);
+  if (previousShow !== show) {
+    setPreviousShow(show);
+    setDismissed(false);
+  }
 
   useEffect(() => {
     if (!show) return;
