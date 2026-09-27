@@ -5,10 +5,12 @@ import { StoreFooter } from "@/components/storefront/store-footer";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
+import { readStorefrontTheme } from "@/i18n/storefront-theme";
 
 export default async function StoreLayout({ children }: { children: ReactNode }) {
-  const [locale, cartItemCount] = await Promise.all([
+  const [locale, theme, cartItemCount] = await Promise.all([
     readStorefrontLocale(),
+    readStorefrontTheme(),
     readCartItemCount(),
   ]);
   const copy = getStorefrontCopy(locale);
@@ -18,7 +20,13 @@ export default async function StoreLayout({ children }: { children: ReactNode })
       <a className="skip-link" href="#main-content">
         {copy.chrome.skipLink}
       </a>
-      <StoreHeader cartItemCount={cartItemCount} copy={copy.chrome} locale={locale} />
+      <StoreHeader
+        accountLabel={copy.account.navLabel}
+        cartItemCount={cartItemCount}
+        copy={copy.chrome}
+        locale={locale}
+        theme={theme}
+      />
       <main className="store-main" id="main-content" tabIndex={-1}>
         {children}
       </main>

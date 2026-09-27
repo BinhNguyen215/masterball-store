@@ -21,7 +21,7 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 88% 8%, oklch(0.33 0.12 303 / 0.18), transparent 28rem),
+    radial-gradient(circle at 88% 8%, var(--page-glow), transparent 28rem),
     var(--surface-page);
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -378,6 +378,84 @@ p {
   }
 }
 
+/* The neon lamp. On = the shop's dark neon theme; off = daylight. The glow is
+   decoration, so the state is carried by aria-checked and the sr-only text. */
+.theme-switch-form {
+  display: inline-flex;
+}
+
+.theme-switch {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.theme-switch-track {
+  position: relative;
+  display: inline-flex;
+  width: 3.25rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  transition:
+    background-color var(--duration-base) var(--ease-out-quart),
+    border-color var(--duration-base) var(--ease-out-quart),
+    box-shadow var(--duration-base) var(--ease-out-quart);
+}
+
+.theme-switch-knob {
+  position: absolute;
+  top: 50%;
+  left: var(--space-1);
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--surface-page);
+  box-shadow: 0 0 0 var(--border-width) var(--border-strong);
+  transform: translateY(-50%);
+  transition: transform var(--duration-base) var(--ease-out-quart);
+}
+
+.theme-switch-icon {
+  position: relative;
+  z-index: 1;
+  color: var(--text-muted);
+}
+
+.theme-switch-icon--night {
+  margin-left: auto;
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-track {
+  border-color: var(--color-cyan-strong);
+  background: var(--color-ink-900);
+  box-shadow: 0 0 0.75rem var(--color-cyan);
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-knob {
+  background: var(--color-cyan-strong);
+  box-shadow: 0 0 0.5rem var(--color-cyan);
+  transform: translateY(-50%) translateX(1.5rem);
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-icon--night {
+  color: var(--color-cyan-strong);
+}
+
+.theme-switch:hover .theme-switch-track,
+.theme-switch:focus-visible .theme-switch-track {
+  border-color: var(--color-cyan-strong);
+}
+
 .mobile-actions {
   display: flex;
   align-items: center;
@@ -421,6 +499,15 @@ p {
 }
 
 .hero {
+  /* The hero is a dark poster in both themes: the photograph behind it never
+     changes, so its text and scrim carry their own tokens instead of flipping
+     with the page theme. */
+  --hero-accent: oklch(0.86 0.115 210);
+  --hero-accent-strong: oklch(0.76 0.185 337);
+  --hero-muted: oklch(0.79 0.022 266);
+  --hero-overlay: oklch(0.09 0.03 274 / 0.76);
+  --hero-scrim: oklch(0.105 0.032 274 / 0.92);
+  --hero-text: oklch(0.975 0.009 286);
   position: relative;
   isolation: isolate;
   display: grid;
@@ -428,13 +515,14 @@ p {
   align-items: end;
   overflow: hidden;
   border-bottom: var(--border-width) solid var(--border-subtle);
+  color: var(--hero-text);
 }
 
 .hero::before {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: linear-gradient(90deg, var(--surface-page) 4%, var(--color-overlay) 58%, oklch(0.105 0.032 274 / 0.18));
+  background: linear-gradient(90deg, var(--hero-scrim) 4%, var(--hero-overlay) 58%, oklch(0.105 0.032 274 / 0.18));
   content: "";
 }
 
@@ -460,7 +548,15 @@ p {
   max-width: 46rem;
 }
 
-.hero-eyebrow,
+.hero-eyebrow {
+  margin: 0;
+  color: var(--hero-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
 .section-label,
 .field-label,
 .meta-label {
@@ -480,7 +576,7 @@ p {
 }
 
 .hero-title span {
-  color: var(--color-plasma-strong);
+  color: var(--hero-accent-strong);
 }
 
 /* The subtitle sits inside the display heading, so it needs its own readable
@@ -488,7 +584,7 @@ p {
 .hero-title small {
   display: block;
   margin-top: var(--space-3);
-  color: var(--text-secondary);
+  color: var(--hero-muted);
   font-family: var(--font-body);
   font-size: var(--text-lg);
   font-weight: 600;
@@ -500,7 +596,7 @@ p {
 .hero-description {
   max-width: 38rem;
   margin: var(--space-6) 0 0;
-  color: var(--text-secondary);
+  color: var(--hero-muted);
   font-size: var(--text-lg);
 }
 
@@ -1683,7 +1779,7 @@ p {
 
 @media (min-width: 64rem) {
   .hero::before {
-    background: linear-gradient(90deg, var(--surface-page) 5%, var(--color-overlay) 44%, oklch(0.105 0.032 274 / 0.08) 74%);
+    background: linear-gradient(90deg, var(--hero-scrim) 5%, var(--hero-overlay) 44%, oklch(0.105 0.032 274 / 0.08) 74%);
   }
 
   .hero-media {

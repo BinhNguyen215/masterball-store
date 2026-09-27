@@ -74,9 +74,42 @@
   --border-width: 0.0625rem;
   --focus-width: 0.1875rem;
 
+  /* Soft brand glow behind the page. */
+  --page-glow: oklch(0.33 0.12 303 / 0.18);
+
   --duration-fast: 120ms;
   --duration-base: 220ms;
   --duration-layout: 360ms;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/**
+ * Daylight mode. Only the semantic layer flips: the palette constants that are
+ * read as *foreground* are darkened here so text keeps its contrast on light
+ * surfaces (the dark theme's luminous cyan/plasma would sit at ~1.5:1 on white).
+ * Measured pairs all pass WCAG AA — see tests/domain/theme-contrast.test.ts.
+ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-page: oklch(0.968 0.006 286);
+  --surface-primary: oklch(1 0 0);
+  --surface-elevated: oklch(0.985 0.004 286);
+  --surface-strong: oklch(0.94 0.01 286);
+  --text-primary: oklch(0.21 0.035 274);
+  --text-secondary: oklch(0.44 0.03 274);
+  --text-muted: oklch(0.55 0.025 274);
+  --border-subtle: oklch(0.88 0.012 286);
+  --border-strong: oklch(0.76 0.02 292);
+
+  --color-cyan-strong: oklch(0.5 0.13 214);
+  --color-plasma-strong: oklch(0.5 0.2 337);
+  --color-warning: oklch(0.55 0.13 80);
+  --color-success: oklch(0.52 0.12 155);
+  --color-danger: oklch(0.5 0.19 24);
+  --color-overlay: oklch(0.2 0.03 274 / 0.55);
+  --focus-ring: oklch(0.5 0.13 214);
+
+  --page-glow: oklch(0.86 0.05 303 / 0.45);
 }

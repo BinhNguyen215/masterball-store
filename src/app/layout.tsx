@@ -4,6 +4,7 @@ import { Barlow_Condensed, Be_Vietnam_Pro } from "next/font/google";
 
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
+import { readStorefrontTheme } from "@/i18n/storefront-theme";
 import "./globals.css";
 
 const displayFont = Barlow_Condensed({
@@ -63,17 +64,27 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#090d20",
-};
+/** The browser chrome follows the visitor's theme, not the shop default. */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await readStorefrontTheme();
+  return {
+    colorScheme: theme,
+    themeColor: theme === "light" ? "#f4f3f8" : "#090d20",
+  };
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const locale = await readStorefrontLocale();
+  const [locale, theme] = await Promise.all([
+    readStorefrontLocale(),
+    readStorefrontTheme(),
+  ]);
 
   return (
+    // `data-theme` has to live on <html>: the page background and `color-scheme`
+    // are declared above the storefront wrapper and cannot be reached from it.
     <html
       className={`${displayFont.variable} ${bodyFont.variable}`}
+      data-theme={theme}
       lang={locale}
     >
       <body>{children}</body>

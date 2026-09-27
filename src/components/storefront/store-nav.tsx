@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, ShoppingBag } from "lucide-react";
+import { Menu, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -42,11 +42,13 @@ function NavLinks({
 }
 
 export function StoreNav({
+  accountLabel,
   cartItemCount,
   copy,
   locale,
   switcher,
 }: {
+  accountLabel: string;
   cartItemCount: number;
   copy: StorefrontCopy["chrome"];
   locale: StorefrontLocale;
@@ -54,6 +56,7 @@ export function StoreNav({
 }) {
   const pathname = usePathname();
   const cartIsCurrent = isCurrentPath(pathname, "/cart");
+  const accountIsCurrent = isCurrentPath(pathname, "/account");
   const cartLabel =
     cartItemCount === 0
       ? copy.nav.openCart
@@ -68,6 +71,15 @@ export function StoreNav({
       </nav>
       <div className="mobile-actions" data-locale={locale}>
         {switcher}
+        <Link
+          aria-current={accountIsCurrent ? "page" : undefined}
+          aria-label={accountLabel}
+          className="cart-link"
+          href="/account"
+          title={accountLabel}
+        >
+          <UserRound aria-hidden="true" size={20} strokeWidth={1.8} />
+        </Link>
         <Link
           aria-current={cartIsCurrent ? "page" : undefined}
           aria-label={cartLabel}

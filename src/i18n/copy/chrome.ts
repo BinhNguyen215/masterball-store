@@ -39,6 +39,13 @@ export const chromeCopy = defineCopy({
     cartToast: {
       dismiss: "Đóng thông báo",
     },
+    theme: {
+      label: "Đèn neon",
+      on: "Đang bật",
+      off: "Đang tắt",
+      switchToLight: "Tắt đèn neon và dùng nền sáng",
+      switchToDark: "Bật đèn neon và trở về nền tối",
+    },
     actions: {
       backToCatalog: "Về catalog",
       backToStore: "Về cửa hàng",
@@ -96,6 +103,13 @@ export const chromeCopy = defineCopy({
     breadcrumb: { home: "Home", aria: "Breadcrumb" },
     cartToast: {
       dismiss: "Dismiss notification",
+    },
+    theme: {
+      label: "Neon light",
+      on: "On",
+      off: "Off",
+      switchToLight: "Turn the neon light off and use the light theme",
+      switchToDark: "Turn the neon light on and go back to the dark theme",
     },
     actions: {
       backToCatalog: "Back to catalog",

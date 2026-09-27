@@ -2,12 +2,21 @@ export const STOREFRONT_LOCALES = ["vi", "en"] as const;
 
 export type StorefrontLocale = (typeof STOREFRONT_LOCALES)[number];
 
+export const STOREFRONT_THEMES = ["dark", "light"] as const;
+
+export type StorefrontTheme = (typeof STOREFRONT_THEMES)[number];
+
 /** Readable by the browser on purpose: a preference, not a credential. */
 export const STOREFRONT_LOCALE_COOKIE = "masterball_locale";
+export const STOREFRONT_THEME_COOKIE = "masterball_theme";
 export const STOREFRONT_LOCALE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export function isStorefrontLocale(value: unknown): value is StorefrontLocale {
   return typeof value === "string" && STOREFRONT_LOCALES.includes(value as StorefrontLocale);
+}
+
+export function isStorefrontTheme(value: unknown): value is StorefrontTheme {
+  return typeof value === "string" && STOREFRONT_THEMES.includes(value as StorefrontTheme);
 }
 
 type CopyValue = string | CopyTree | readonly CopyValue[];

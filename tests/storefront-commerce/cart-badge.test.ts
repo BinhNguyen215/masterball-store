@@ -18,6 +18,7 @@ const enCopy = getStorefrontCopy("en");
 function renderNav(cartItemCount: number, locale: "vi" | "en" = "vi") {
   return render(
     createElement(StoreNav, {
+      accountLabel: "Tài khoản",
       cartItemCount,
       copy: (locale === "vi" ? viCopy : enCopy).chrome,
       locale,
