@@ -22,6 +22,7 @@ import {
   canTransition,
   fulfillmentTransitions,
   orderTransitions,
+  paymentTransitions,
 } from "./order-state";
 
 export class OrderStateError extends Error {
@@ -308,63 +309,86 @@ export function cancelOrder(input: {
   return transitionOrder({ ...input, dimension: "ORDER", toStatus: "CANCELLED" });
 }
 
-export async function updateOrderDetails(input: {
+/**
+ * Records cash collected for a cash-on-delivery order. No payment provider can
+ * confirm COD, so the operator who took the money is the source of truth; the
+ * change still runs through the payment state machine and writes an order
+ * history row plus an audit entry in the same transaction.
+ */
+export async function settleCashPayment(input: {
   orderId: string;
   expectedVersion: number;
   actorId: string;
-  trackingNumber?: string | null;
-  internalNote?: string | null;
+  note: string;
 }) {
   return getDb().transaction(async (tx) => {
-    const [before] = await tx
+    const [order] = await tx
       .select()
       .from(orders)
       .where(eq(orders.id, input.orderId))
       .limit(1)
       .for("update");
-    if (!before) throw new OrderStateError("Order was not found.");
-    if (before.version !== input.expectedVersion) {
+    if (!order) throw new OrderStateError("Order was not found.");
+    if (order.version !== input.expectedVersion) {
       throw new OrderStateError("Order was changed by another request.");
     }
-    const [updated] = await tx
+    if (order.paymentMethod !== "COD") {
+      throw new OrderStateError(
+        "Only cash-on-delivery orders are settled here.",
+      );
+    }
+    if (order.orderStatus === "CANCELLED") {
+      throw new OrderStateError("A cancelled order cannot collect cash.");
+    }
+    if (!canTransition(paymentTransitions, order.paymentStatus, "PAID")) {
+      throw new OrderStateError(
+        `Payment cannot transition from ${order.paymentStatus} to PAID.`,
+      );
+    }
+    const now = new Date();
+    const [payment] = await tx
+      .select()
+      .from(payments)
+      .where(and(eq(payments.orderId, order.id), eq(payments.provider, "COD")))
+      .limit(1)
+      .for("update");
+    if (!payment) {
+      throw new OrderStateError("The cash payment record was not found.");
+    }
+
+    await tx
+      .update(payments)
+      .set({ status: "PAID", paidAt: now, updatedAt: now })
+      .where(eq(payments.id, payment.id));
+    await tx
       .update(orders)
       .set({
-        trackingNumber:
-          input.trackingNumber === undefined
-            ? before.trackingNumber
-            : input.trackingNumber?.trim() || null,
-        internalNote:
-          input.internalNote === undefined ? before.internalNote : input.internalNote,
+        paymentStatus: "PAID",
         version: sql`${orders.version} + 1`,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
-      .where(and(eq(orders.id, before.id), eq(orders.version, input.expectedVersion)))
-      .returning();
+      .where(eq(orders.id, order.id));
     await tx.insert(orderStatusHistory).values({
-      orderId: before.id,
+      orderId: order.id,
       actorId: input.actorId,
-      dimension: "DETAILS",
-      fromStatus: null,
-      toStatus: "UPDATED",
-      reason: "Tracking or internal note updated",
+      dimension: "PAYMENT",
+      fromStatus: order.paymentStatus,
+      toStatus: "PAID",
+      reason: input.note,
     });
     await appendAuditLog(tx, {
       actorId: input.actorId,
-      action: "order.details.update",
+      action: "order.payment.settle",
       subjectType: "order",
-      subjectId: before.id,
-      before: {
-        trackingNumber: before.trackingNumber,
-        internalNote: before.internalNote,
-        version: before.version,
-      },
-      after: {
-        trackingNumber: updated.trackingNumber,
-        internalNote: updated.internalNote,
-        version: updated.version,
-      },
+      subjectId: order.id,
+      before: { paymentStatus: order.paymentStatus, version: order.version },
+      after: { paymentStatus: "PAID", version: order.version + 1 },
     });
-    return updated;
+    return {
+      ...order,
+      paymentStatus: "PAID" as const,
+      version: order.version + 1,
+    };
   });
 }
 

@@ -135,16 +135,24 @@ export const inventoryMutationSchema = z.object({
 
 export const orderMutationSchema = z.object({
   orderId: identifier,
-  targetStatus: z.enum(["CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]),
+  targetStatus: z.enum(["CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED"]),
   trackingCode: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
   version: z.coerce.number().int().positive(),
 });
 
-export const paymentMutationSchema = z.object({
-  paymentId: z.string().uuid(),
-  operation: z.literal("reconcile"),
-});
+export const paymentMutationSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.literal("reconcile"),
+    paymentId: z.string().uuid(),
+  }),
+  z.object({
+    operation: z.literal("settle-cod"),
+    orderId: identifier,
+    version: z.coerce.number().int().positive(),
+    note: z.string().trim().min(3).max(240),
+  }),
+]);
 
 const dateTime = z.string().trim().min(1).transform((value, context) => {
   const withZone = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)

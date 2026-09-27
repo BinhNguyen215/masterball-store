@@ -115,6 +115,12 @@ export async function paymentAction(_state: MutationState, formData: FormData): 
   try {
     const actor = await authorize("payments.reconcile");
     const input = paymentMutationSchema.parse(values(formData));
+    if (input.operation === "settle-cod") {
+      await adminApplication.settleCashPayment(input, actor.id);
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/orders");
+      return { ok: true, message: "Đã ghi nhận thu tiền mặt cho đơn COD." };
+    }
     await adminApplication.reconcilePayment(
       input,
       actor.id,

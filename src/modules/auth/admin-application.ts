@@ -23,7 +23,7 @@ import {
 } from "@/modules/catalog";
 import { processEmailOutbox } from "@/modules/email";
 import { adjustInventory, listAdminInventory } from "@/modules/inventory";
-import { expirePendingOrders, listAdminOrders, transitionOrder } from "@/modules/orders";
+import { expirePendingOrders, listAdminOrders, settleCashPayment, transitionOrder } from "@/modules/orders";
 import {
   inspectVnpayReturn,
   listAdminPayments,
@@ -100,6 +100,7 @@ export type AdminApplication = {
   adjustInventory(input: Record<string, unknown>, actorId: string): Promise<void>;
   transitionOrder(input: Record<string, unknown>, actorId: string): Promise<void>;
   reconcilePayment(input: Record<string, unknown>, actorId: string, ipAddress: string): Promise<void>;
+  settleCashPayment(input: Record<string, unknown>, actorId: string): Promise<void>;
   createTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
   updateTournament(input: Record<string, unknown>, actorId: string): Promise<void>;
   setTournamentStatus(input: Record<string, unknown>, actorId: string): Promise<void>;
@@ -458,6 +459,14 @@ export const adminApplication: AdminApplication = {
       paymentId: String(input.paymentId),
       actorId,
       ipAddress,
+    });
+  },
+  settleCashPayment: async (input, actorId) => {
+    await settleCashPayment({
+      orderId: String(input.orderId),
+      expectedVersion: Number(input.version),
+      actorId,
+      note: String(input.note),
     });
   },
   createTournament: async (input, actorId) => {
