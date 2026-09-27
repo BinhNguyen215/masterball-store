@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 import {
   listProductMedia,
+  MEDIA_MAX_IMAGE_BYTES,
   MediaManagementError,
   MediaRequestTooLargeError,
   MediaStorageError,
@@ -16,8 +17,7 @@ import {
 
 export const runtime = "nodejs";
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const MAX_MULTIPART_BYTES = MAX_IMAGE_BYTES + 256 * 1024;
+const MAX_MULTIPART_BYTES = MEDIA_MAX_IMAGE_BYTES + 256 * 1024;
 
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     ) {
       return Response.json({ error: "INVALID_MEDIA_INPUT" }, { status: 400 });
     }
-    if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
+    if (file.size === 0 || file.size > MEDIA_MAX_IMAGE_BYTES) {
       return Response.json({ error: "MEDIA_TOO_LARGE" }, { status: 413 });
     }
     const asset = await uploadProductMedia({

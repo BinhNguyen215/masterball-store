@@ -9,6 +9,14 @@ const allowedFormats = new Map([
   ["avif", "image/avif"],
 ] as const);
 
+/**
+ * One upload ceiling for every runtime. Vercel Node Functions reject request
+ * bodies above 4.5 MB before the handler runs, so advertising a higher limit
+ * would promise an upload the platform never delivers; keep a single truthful
+ * number (multipart overhead stays inside the platform budget) instead.
+ */
+export const MEDIA_MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
 export class MediaValidationError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -22,7 +30,7 @@ export async function validateProductMedia(input: {
   maxBytes?: number;
   maxDimension?: number;
 }) {
-  const maxBytes = input.maxBytes ?? 10 * 1024 * 1024;
+  const maxBytes = input.maxBytes ?? MEDIA_MAX_IMAGE_BYTES;
   const maxDimension = input.maxDimension ?? 8_000;
   const altText = input.altText.trim();
   if (!altText) throw new MediaValidationError("Media alt text is required.");

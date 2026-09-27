@@ -20,7 +20,7 @@ type MediaAssetView = {
 function errorMessage(status: number, operation: string): string {
   if (status === 401) return "Phiên đăng nhập đã hết hạn.";
   if (status === 403) return "Bạn không có quyền quản lý ảnh.";
-  if (status === 413) return "Ảnh vượt quá giới hạn 10 MB.";
+  if (status === 413) return "Ảnh vượt quá giới hạn dung lượng cho phép.";
   if (status === 404) return "Không tìm thấy sản phẩm, biến thể hoặc ảnh.";
   if (status === 409) return "Sản phẩm/ảnh đã thay đổi và không thể cập nhật.";
   if (status === 502) return "Lưu trữ đối tượng chưa hoàn tất; cần thử lại hoặc kiểm tra cleanup.";
@@ -141,7 +141,8 @@ function MediaRow({
   );
 }
 
-export function MediaManager() {
+export function MediaManager({ maxBytes }: { maxBytes: number }) {
+  const maxMegabytes = Math.round(maxBytes / (1024 * 1024));
   const [productId, setProductId] = useState("");
   const [assets, setAssets] = useState<MediaAssetView[]>([]);
   const [message, setMessage] = useState("");
@@ -173,8 +174,8 @@ export function MediaManager() {
     const form = event.currentTarget;
     const data = new FormData(form);
     const file = data.get("file");
-    if (!(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024) {
-      setMessage("Chọn ảnh raster không rỗng và không quá 10 MB.");
+    if (!(file instanceof File) || file.size === 0 || file.size > maxBytes) {
+      setMessage(`Chọn ảnh raster không rỗng và không quá ${maxMegabytes} MB.`);
       return;
     }
     setPending(true);
@@ -199,7 +200,7 @@ export function MediaManager() {
       <div>
         <h2 className="text-lg font-black">Gallery sản phẩm</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Ảnh raster tối đa 10 MB. Thứ tự 0 luôn là ảnh chính; tên tệp phía client không được dùng làm object key.
+          Ảnh raster tối đa {maxMegabytes} MB. Thứ tự 0 luôn là ảnh chính; tên tệp phía client không được dùng làm object key.
         </p>
       </div>
       <label className="grid gap-1.5 text-sm font-semibold text-slate-800">

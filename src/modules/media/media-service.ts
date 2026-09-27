@@ -9,7 +9,7 @@ import {
   getDefaultMediaStorage,
   type MediaStorage,
 } from "./s3-media-storage";
-import { validateProductMedia } from "./media-validation";
+import { MEDIA_MAX_IMAGE_BYTES, validateProductMedia } from "./media-validation";
 
 const uuid = z.string().uuid();
 const altText = z.string().trim().min(1).max(500);
@@ -132,7 +132,7 @@ export async function uploadProductMedia(
   const prepared = await validateProductMedia({
     bytes: input.bytes,
     altText: input.altText,
-    maxBytes: 10 * 1024 * 1024,
+    maxBytes: MEDIA_MAX_IMAGE_BYTES,
   });
   await assertUploadRelation(input.productId, variantId);
   const objectStorage = storage ?? (await getDefaultMediaStorage());

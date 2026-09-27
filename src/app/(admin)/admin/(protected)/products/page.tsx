@@ -6,6 +6,7 @@ import { ResourcePanel, type AdminSearchParams } from "@/components/admin/resour
 import { SearchFilterBar } from "@/components/admin/search-filter-bar";
 import { requireAdminPage } from "@/modules/auth/guards";
 import { hasCapability } from "@/modules/auth/roles";
+import { MEDIA_MAX_IMAGE_BYTES } from "@/modules/media";
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<AdminSearchParams> }) {
   const actor = await requireAdminPage("catalog.read");
@@ -28,7 +29,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           <CatalogImportForm />
         </div>
       ) : null}
-      {hasCapability(actor.role, "catalog.write") ? <MediaManager /> : null}
+      {hasCapability(actor.role, "catalog.write") ? (
+        <MediaManager maxBytes={MEDIA_MAX_IMAGE_BYTES} />
+      ) : null}
     </>
   );
 }
