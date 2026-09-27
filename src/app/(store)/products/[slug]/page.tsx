@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CartToast } from "@/components/storefront/cart-toast";
 import { ProductDetailView } from "@/components/storefront/product-detail-view";
 import { RecentlyViewedRecorder } from "@/components/storefront/recently-viewed-recorder";
 import { loadStorefrontProduct } from "@/components/storefront/storefront-data";
@@ -53,6 +54,7 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
   const query = await searchParams;
+  const cartFlag = Array.isArray(query.cart) ? query.cart[0] : query.cart;
   const locale = await readStorefrontLocale();
   const copy = getStorefrontCopy(locale);
   const { configured, product, recentlyViewed, related, reviews, shouldRecordView } =
@@ -126,13 +128,20 @@ export default async function ProductDetailPage({
           type="application/ld+json"
         />
       ) : null}
+      <CartToast
+        copy={copy.chrome}
+        message={copy.product.cartAdded}
+        show={cartFlag === "added"}
+      />
       <ProductDetailView
         addToCartAction={
           product
             ? addProductVariantToCart.bind(null, product.slug)
             : undefined
         }
-        cartMessage={getProductCartMessage(query, copy.product)}
+        cartMessage={
+          cartFlag === "added" ? undefined : getProductCartMessage(query, copy.product)
+        }
         product={product}
         recentlyViewed={recentlyViewed}
         related={related}

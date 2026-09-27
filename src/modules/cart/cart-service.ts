@@ -132,6 +132,20 @@ export async function setCartItem(input: {
   });
 }
 
+/**
+ * Units in the active cart, for the header badge. A single aggregate read so
+ * every storefront page can show the count without loading the cart rows.
+ */
+export async function getCartItemCount(token: string): Promise<number> {
+  const tokenHash = requireCartTokenHash(token);
+  const [row] = await getDb()
+    .select({ total: sql<number>`coalesce(sum(${cartItems.quantity}), 0)::int` })
+    .from(carts)
+    .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
+    .where(and(eq(carts.tokenHash, tokenHash), eq(carts.status, "ACTIVE")));
+  return Number(row?.total ?? 0);
+}
+
 export async function getCart(token: string) {
   const tokenHash = requireCartTokenHash(token);
   const [cart] = await getDb()

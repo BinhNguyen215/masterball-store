@@ -11,6 +11,8 @@ export const chromeCopy = defineCopy({
       policies: "Chính sách",
       openMenu: "Mở trình đơn",
       openCart: "Mở giỏ hàng",
+      openCartWithCount: "Mở giỏ hàng, {count} sản phẩm",
+      openCartWithOne: "Mở giỏ hàng, 1 sản phẩm",
     },
     language: {
       label: "Ngôn ngữ",
@@ -34,6 +36,9 @@ export const chromeCopy = defineCopy({
       addressMapLabel: "Mở địa chỉ cửa hàng trên Google Maps",
     },
     breadcrumb: { home: "Trang chủ", aria: "Đường dẫn trang" },
+    cartToast: {
+      dismiss: "Đóng thông báo",
+    },
     actions: {
       backToCatalog: "Về catalog",
       backToStore: "Về cửa hàng",
@@ -41,6 +46,7 @@ export const chromeCopy = defineCopy({
       previousPage: "Trang trước",
       nextPage: "Trang sau",
       tryAgain: "Thử lại",
+      viewCart: "Xem giỏ hàng",
     },
     status: {
       loading: "Đang tải…",
@@ -63,6 +69,8 @@ export const chromeCopy = defineCopy({
       policies: "Policies",
       openMenu: "Open menu",
       openCart: "Open cart",
+      openCartWithCount: "Open cart, {count} items",
+      openCartWithOne: "Open cart, 1 item",
     },
     language: {
       label: "Language",
@@ -86,6 +94,9 @@ export const chromeCopy = defineCopy({
       addressMapLabel: "Open the store address in Google Maps",
     },
     breadcrumb: { home: "Home", aria: "Breadcrumb" },
+    cartToast: {
+      dismiss: "Dismiss notification",
+    },
     actions: {
       backToCatalog: "Back to catalog",
       backToStore: "Back to store",
@@ -93,6 +104,7 @@ export const chromeCopy = defineCopy({
       previousPage: "Previous page",
       nextPage: "Next page",
       tryAgain: "Try again",
+      viewCart: "View cart",
     },
     status: {
       loading: "Loading…",

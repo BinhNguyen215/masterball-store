@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import type { StorefrontCopy, StorefrontLocale } from "@/i18n";
+import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
 
 function isCurrentPath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -42,16 +42,24 @@ function NavLinks({
 }
 
 export function StoreNav({
+  cartItemCount,
   copy,
   locale,
   switcher,
 }: {
+  cartItemCount: number;
   copy: StorefrontCopy["chrome"];
   locale: StorefrontLocale;
   switcher: ReactNode;
 }) {
   const pathname = usePathname();
   const cartIsCurrent = isCurrentPath(pathname, "/cart");
+  const cartLabel =
+    cartItemCount === 0
+      ? copy.nav.openCart
+      : cartItemCount === 1
+        ? copy.nav.openCartWithOne
+        : formatCopy(copy.nav.openCartWithCount, { count: cartItemCount });
 
   return (
     <>
@@ -62,11 +70,16 @@ export function StoreNav({
         {switcher}
         <Link
           aria-current={cartIsCurrent ? "page" : undefined}
-          aria-label={copy.nav.openCart}
+          aria-label={cartLabel}
           className="cart-link"
           href="/cart"
         >
           <ShoppingBag aria-hidden="true" size={20} strokeWidth={1.8} />
+          {cartItemCount > 0 ? (
+            <span aria-hidden="true" className="cart-count">
+              {cartItemCount > 99 ? "99+" : cartItemCount}
+            </span>
+          ) : null}
         </Link>
         <details className="mobile-nav">
           <summary aria-label={copy.nav.openMenu}>

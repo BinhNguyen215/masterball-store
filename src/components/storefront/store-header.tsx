@@ -7,9 +7,11 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { setStorefrontLocale } from "@/app/(store)/locale-actions";
 
 export function StoreHeader({
+  cartItemCount,
   copy,
   locale,
 }: {
+  cartItemCount: number;
   copy: StorefrontCopy["chrome"];
   locale: StorefrontLocale;
 }) {
@@ -17,7 +19,7 @@ export function StoreHeader({
     <header className="site-header">
       <div className="header-inner">
         <BrandMark />
-        <StoreNav copy={copy} locale={locale} switcher={<LocaleSwitcher action={setStorefrontLocale} locale={locale} />} />
+        <StoreNav copy={copy} locale={locale} cartItemCount={cartItemCount} switcher={<LocaleSwitcher action={setStorefrontLocale} locale={locale} />} />
       </div>
     </header>
   );

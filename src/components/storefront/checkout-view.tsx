@@ -114,9 +114,7 @@ export function CheckoutView({
                 <span aria-hidden="true" className="payment-method-icon">🏬</span>
                 <span>
                   <strong>{copy.pickupTitle}</strong>
-                  <small>
-                    {formatCopy(copy.pickupHint, { address: pickup.address })}
-                  </small>
+                  <small>{copy.pickupHint}</small>
                 </span>
               </label>
             </fieldset>
