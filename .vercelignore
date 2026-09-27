@@ -1,0 +1,11 @@
+# Deployment payload exclusions (Vercel CLI reads this in addition to .gitignore).
+node_modules
+.next
+.git
+.local
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+.env*

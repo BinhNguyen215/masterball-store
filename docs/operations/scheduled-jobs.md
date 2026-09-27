@@ -17,9 +17,21 @@ Authorization: `Authorization: Bearer $CRON_SECRET`. The secret must be at least
 and a wrong secret returns `401 UNAUTHORIZED`. Nothing else (session, capability)
 is accepted for these routes.
 
+The endpoints answer both `POST` and `GET` with the same handler and the same
+bearer check, because Vercel Cron always issues `GET`.
+
 ## Scheduling options
 
-Pick one and record the choice in the launch checklist.
+Pick one and record the choice in the launch checklist. The committed
+[`vercel.json`](../../vercel.json) schedules all three jobs; replace it if you
+choose a different host.
+
+**Vercel Cron** — the committed `vercel.json` `crons` entries are the applied
+choice. Vercel only invokes cron for deployments that receive traffic, and the
+Hobby plan accepts **daily schedules only** (a more frequent expression fails the
+deployment): the committed entries therefore run once per day, not at the
+operational cadence below. Move to Pro, or use one of the options below, when the
+5-minute/1-minute cadence is required.
 
 **VPS or a long-running host** — a crontab entry per job:
 
@@ -46,8 +58,7 @@ jobs:
           done
 ```
 
-**Vercel Cron** — `vercel.json` `crons` entries; note that Vercel only invokes
-cron for deployments that receive traffic.
+**Vercel Cron** — see the applied choice at the top of this section.
 
 ## Running a job by hand
 

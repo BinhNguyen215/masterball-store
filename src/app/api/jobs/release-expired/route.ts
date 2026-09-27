@@ -3,7 +3,7 @@ import { authorizeJob } from "@/modules/auth/job-auth";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+async function handle(request: Request) {
   const denied = authorizeJob(request);
   if (denied) return denied;
   try {
@@ -16,3 +16,7 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// Vercel Cron invokes scheduled paths with GET; operators and crontabs use POST.
+export const GET = handle;
+export const POST = handle;
