@@ -30,11 +30,11 @@ export function StoreHeader({
           cartItemCount={cartItemCount}
           copy={copy}
           locale={locale}
-          switcher={
-            <>
-              <ThemeSwitch action={setStorefrontTheme} copy={copy.theme} theme={theme} />
-              <LocaleSwitcher action={setStorefrontLocale} locale={locale} />
-            </>
+          localeSwitcher={
+            <LocaleSwitcher action={setStorefrontLocale} locale={locale} />
+          }
+          themeSwitch={
+            <ThemeSwitch action={setStorefrontTheme} copy={copy.theme} theme={theme} />
           }
         />
       </div>

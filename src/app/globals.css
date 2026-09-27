@@ -456,6 +456,14 @@ p {
   border-color: var(--color-cyan-strong);
 }
 
+.locale-switcher-wide {
+  display: none;
+}
+
+.mobile-menu-locale {
+  margin-bottom: var(--space-3);
+}
+
 .mobile-actions {
   display: flex;
   align-items: center;
@@ -1723,6 +1731,11 @@ p {
 
   .mobile-nav {
     display: none;
+  }
+
+  /* The header keeps the switcher from tablet up; phones use the menu copy. */
+  .locale-switcher-wide {
+    display: inline-flex;
   }
 
   .hero-content {

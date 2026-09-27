@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const publicHtmlRoutes = [
   "/",
@@ -118,6 +118,19 @@ test("the shared skip link is the first keyboard target", async ({ page }) => {
   await expect(page.locator("main#main-content")).toBeFocused();
 });
 
+/**
+ * Phones keep the locale switcher inside the collapsed header menu (it does not
+ * fit next to the theme switch, account and cart), so the test opens the menu
+ * when the control is not already visible — the same path a shopper takes.
+ */
+async function switchLocale(page: Page, name: string) {
+  const button = page.getByRole("button", { name });
+  if (!(await button.isVisible())) {
+    await page.locator(".mobile-nav summary").click();
+  }
+  await button.click();
+}
+
 test("the locale switcher writes a cookie that the server renders in", async ({
   page,
 }) => {
@@ -127,14 +140,14 @@ test("the locale switcher writes a cookie that the server renders in", async ({
   await expect(shell).toHaveAttribute("lang", "vi");
   await expect(heading).toHaveText(/Tìm đúng lá bài/);
 
-  await page.getByRole("button", { name: "English" }).click();
+  await switchLocale(page, "English");
   await expect(shell).toHaveAttribute("lang", "en");
   await expect(heading).toHaveText(/Find the right card/);
 
   const cookies = await page.context().cookies();
   expect(cookies.find((cookie) => cookie.name === "masterball_locale")?.value).toBe("en");
 
-  await page.getByRole("button", { name: "Tiếng Việt" }).click();
+  await switchLocale(page, "Tiếng Việt");
   await expect(shell).toHaveAttribute("lang", "vi");
   await expect(heading).toHaveText(/Tìm đúng lá bài/);
 });
@@ -151,7 +164,7 @@ test("each locale renders the homepage hero in one language only", async ({
   await expect(hero()).not.toContainText("Choose well.");
   await expect(hero()).not.toContainText("TCG products and accessories for collecting");
 
-  await page.getByRole("button", { name: "English" }).click();
+  await switchLocale(page, "English");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(hero()).toContainText("Choose well.");
   await expect(hero()).toContainText("TCG products and accessories for collecting");

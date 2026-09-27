@@ -46,13 +46,15 @@ export function StoreNav({
   cartItemCount,
   copy,
   locale,
-  switcher,
+  localeSwitcher,
+  themeSwitch,
 }: {
   accountLabel: string;
   cartItemCount: number;
   copy: StorefrontCopy["chrome"];
   locale: StorefrontLocale;
-  switcher: ReactNode;
+  localeSwitcher: ReactNode;
+  themeSwitch: ReactNode;
 }) {
   const pathname = usePathname();
   const cartIsCurrent = isCurrentPath(pathname, "/cart");
@@ -70,7 +72,10 @@ export function StoreNav({
         <NavLinks copy={copy} pathname={pathname} />
       </nav>
       <div className="mobile-actions" data-locale={locale}>
-        {switcher}
+        {themeSwitch}
+        {/* The locale switcher is wide, so at phone widths it lives inside the
+            menu instead of the header row. */}
+        <span className="locale-switcher-wide">{localeSwitcher}</span>
         <Link
           aria-current={accountIsCurrent ? "page" : undefined}
           aria-label={accountLabel}
@@ -98,6 +103,7 @@ export function StoreNav({
             <Menu aria-hidden="true" size={22} strokeWidth={1.8} />
           </summary>
           <nav aria-label={copy.nav.mobileAria} className="mobile-menu">
+            <div className="mobile-menu-locale">{localeSwitcher}</div>
             <NavLinks copy={copy} pathname={pathname} />
           </nav>
         </details>

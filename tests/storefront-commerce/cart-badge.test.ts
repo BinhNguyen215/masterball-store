@@ -22,7 +22,8 @@ function renderNav(cartItemCount: number, locale: "vi" | "en" = "vi") {
       cartItemCount,
       copy: (locale === "vi" ? viCopy : enCopy).chrome,
       locale,
-      switcher: null,
+      localeSwitcher: null,
+      themeSwitch: null,
     }),
   );
 }
