@@ -2,12 +2,34 @@
 
 import { ShoppingBag } from "lucide-react";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 
 import { RestockAlertForm } from "@/components/storefront/restock-alert-form";
 import type { ProductDetailViewModel } from "@/components/storefront/storefront-types";
 import type { StorefrontCopy } from "@/i18n";
 
 type ProductFormAction = (formData: FormData) => Promise<void>;
+
+/**
+ * The submit button owns its own pending state, so a slow add-to-cart cannot be
+ * pressed twice and the shopper gets feedback while the server action runs.
+ */
+function AddToCartButton({
+  label,
+  pendingLabel,
+}: {
+  label: string;
+  pendingLabel: string;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button className="button button--primary" disabled={pending} type="submit">
+      {pending ? pendingLabel : label}
+      <ShoppingBag aria-hidden="true" size={18} strokeWidth={1.8} />
+    </button>
+  );
+}
 
 type ProductPurchaseFormProps = {
   addToCartAction: ProductFormAction;
@@ -75,10 +97,7 @@ export function ProductPurchaseForm({
                 type="number"
               />
             </div>
-            <button className="button button--primary" type="submit">
-              {copy.addToCart}
-              <ShoppingBag aria-hidden="true" size={18} strokeWidth={1.8} />
-            </button>
+            <AddToCartButton label={copy.addToCart} pendingLabel={copy.addingToCart} />
           </>
         )}
       </form>
