@@ -108,6 +108,21 @@ async function applyTrustedVnpayResult(
         after,
       });
     };
+    const auditIpn = async (after: Record<string, unknown>) => {
+      if (eventKind !== "IPN") return;
+      await appendAuditLog(tx, {
+        actorId: actorId ?? null,
+        action: "payment.ipn",
+        subjectType: "payment",
+        subjectId: payment.id,
+        before: {
+          orderStatus: order.orderStatus,
+          paymentStatus: payment.status,
+          providerTransactionId: payment.providerTransactionId,
+        },
+        after,
+      });
+    };
 
     const [insertedEvent] = await tx
       .insert(paymentEvents)
@@ -172,6 +187,29 @@ async function applyTrustedVnpayResult(
             updatedAt: now,
           })
           .where(eq(orders.id, order.id));
+        await tx.insert(orderStatusHistory).values([
+          {
+            orderId: order.id,
+            dimension: "ORDER",
+            fromStatus: order.orderStatus,
+            toStatus: "CANCELLED",
+            reason: "VNPAY reported an unsuccessful transaction",
+          },
+          {
+            orderId: order.id,
+            dimension: "PAYMENT",
+            fromStatus: order.paymentStatus,
+            toStatus: "FAILED",
+            reason: "VNPAY reported an unsuccessful transaction",
+          },
+        ]);
+        await auditIpn({
+          result: "CANCELLED",
+          orderStatus: "CANCELLED",
+          paymentStatus: "FAILED",
+          responseCode: params.vnp_ResponseCode ?? null,
+          transactionStatus: params.vnp_TransactionStatus ?? null,
+        });
       }
       return { RspCode: "00", Message: "Confirm Success" };
     }
@@ -207,6 +245,12 @@ async function applyTrustedVnpayResult(
         reason: "Verified payment arrived after inventory reservation release",
       });
       await auditReconciliation({
+        result: "MANUAL_REVIEW",
+        orderStatus: order.orderStatus,
+        paymentStatus: "MANUAL_REVIEW",
+        providerTransactionId: params.vnp_TransactionNo ?? null,
+      });
+      await auditIpn({
         result: "MANUAL_REVIEW",
         orderStatus: order.orderStatus,
         paymentStatus: "MANUAL_REVIEW",
@@ -272,6 +316,12 @@ async function applyTrustedVnpayResult(
       });
     }
     await auditReconciliation({
+      result: "PAID",
+      orderStatus: "CONFIRMED",
+      paymentStatus: "PAID",
+      providerTransactionId: params.vnp_TransactionNo ?? null,
+    });
+    await auditIpn({
       result: "PAID",
       orderStatus: "CONFIRMED",
       paymentStatus: "PAID",
