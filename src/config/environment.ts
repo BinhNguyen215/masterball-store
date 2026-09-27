@@ -77,7 +77,9 @@ const jobsSchema = z.object({
 const bankTransferSchema = z.object({
   BANK_TRANSFER_BANK_ID: requiredText,
   BANK_TRANSFER_ACCOUNT_NO: requiredText,
-  BANK_TRANSFER_ACCOUNT_NAME: requiredText,
+  // Optional: VietQR renders the QR without it, and the customer's own banking
+  // app shows the account holder name before they confirm.
+  BANK_TRANSFER_ACCOUNT_NAME: z.string().trim().optional(),
 });
 
 function parseEnvironment<T extends z.ZodType>(

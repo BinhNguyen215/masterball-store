@@ -9,7 +9,8 @@ import { getBankTransferEnvironment } from "@/config/environment";
 export type BankTransferConfig = {
   bankId: string;
   accountNo: string;
-  accountName: string;
+  /** Null when the deployment has not published the account holder name. */
+  accountName: string | null;
 };
 
 export type BankTransferInstruction = BankTransferConfig & {
@@ -32,7 +33,7 @@ export function readBankTransferConfig(): BankTransferConfig | null {
   try {
     const environment = getBankTransferEnvironment();
     return {
-      accountName: environment.BANK_TRANSFER_ACCOUNT_NAME.trim(),
+      accountName: environment.BANK_TRANSFER_ACCOUNT_NAME?.trim() || null,
       accountNo: environment.BANK_TRANSFER_ACCOUNT_NO.trim(),
       bankId: environment.BANK_TRANSFER_BANK_ID.trim(),
     };
@@ -53,8 +54,8 @@ export function buildVietQrImageUrl(
   const query = new URLSearchParams({
     amount: String(input.amountVnd),
     addInfo: input.transferContent,
-    accountName: input.accountName,
   });
+  if (input.accountName) query.set("accountName", input.accountName);
   return `${VIETQR_IMAGE_ORIGIN}/${input.bankId}-${input.accountNo}-${VIETQR_TEMPLATE}.png?${query.toString()}`;
 }
 

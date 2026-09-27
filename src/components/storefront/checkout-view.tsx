@@ -7,6 +7,7 @@ import { useState } from "react";
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { CartLineItemViewModel } from "@/components/storefront/storefront-types";
 import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
+import { buildGoogleMapsSearchUrl } from "@/lib/google-maps";
 import type { PickupLocation } from "@/modules/checkout/pickup-location";
 import {
   getCheckoutShippingFee,
@@ -172,7 +173,17 @@ export function CheckoutView({
               <span className="field-label">{copy.pickupAddressLabel}</span>
               <p>
                 {pickup?.storeName ? `${pickup.storeName} · ` : ""}
-                {pickup?.address}
+                {pickup ? (
+                  <a
+                    aria-label={copy.pickupMapLabel}
+                    href={buildGoogleMapsSearchUrl(pickup.address)}
+                    rel="noreferrer"
+                    target="_blank"
+                    title={copy.pickupMapLabel}
+                  >
+                    {pickup.address}
+                  </a>
+                ) : null}
               </p>
               <p className="field-help">{copy.pickupContactNote}</p>
             </div>

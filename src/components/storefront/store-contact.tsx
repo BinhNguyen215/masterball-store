@@ -1,4 +1,5 @@
 import type { StorefrontCopy } from "@/i18n";
+import { buildGoogleMapsSearchUrl } from "@/lib/google-maps";
 
 type StoreContactDetails = {
   address?: string;
@@ -36,7 +37,19 @@ export function StoreContact({ copy }: { copy: StorefrontCopy["chrome"] }) {
       <h2>{copy.footer.contactHeading}</h2>
       <ul>
         {details.legalName ? <li>{details.legalName}</li> : null}
-        {details.address ? <li>{details.address}</li> : null}
+        {details.address ? (
+          <li>
+            <a
+              aria-label={copy.footer.addressMapLabel}
+              href={buildGoogleMapsSearchUrl(details.address)}
+              rel="noreferrer"
+              target="_blank"
+              title={copy.footer.addressMapLabel}
+            >
+              {details.address}
+            </a>
+          </li>
+        ) : null}
         {details.phone ? (
           <li>
             <a href={`tel:${details.phone.replace(/\s+/g, "")}`}>{details.phone}</a>

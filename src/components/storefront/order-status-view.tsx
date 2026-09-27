@@ -8,6 +8,7 @@ import {
 } from "@/components/storefront/storefront-formatters";
 import type { OrderStatusViewModel } from "@/components/storefront/storefront-types";
 import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
+import { buildGoogleMapsSearchUrl } from "@/lib/google-maps";
 import type { BankTransferInstruction } from "@/modules/payments/bank-transfer";
 import type { PickupLocation } from "@/modules/checkout/pickup-location";
 
@@ -76,7 +77,16 @@ export function OrderStatusView({
         </dl>
         {pickup ? (
           <p className="field-help">
-            {formatCopy(orders.pickupNote, { address: pickup.address })}
+            {orders.pickupNote}{" "}
+            <a
+              aria-label={copy.chrome.footer.addressMapLabel}
+              href={buildGoogleMapsSearchUrl(pickup.address)}
+              rel="noreferrer"
+              target="_blank"
+              title={copy.chrome.footer.addressMapLabel}
+            >
+              {pickup.address}
+            </a>
           </p>
         ) : order.trackingNumber ? null : (
           <p className="field-help">{orders.trackingPendingNote}</p>
@@ -99,10 +109,12 @@ export function OrderStatusView({
               <dt>{orders.bankTransferAccountNo}</dt>
               <dd>{bankTransfer.accountNo}</dd>
             </div>
-            <div className="order-summary-row">
-              <dt>{orders.bankTransferAccountName}</dt>
-              <dd>{bankTransfer.accountName}</dd>
-            </div>
+            {bankTransfer.accountName ? (
+              <div className="order-summary-row">
+                <dt>{orders.bankTransferAccountName}</dt>
+                <dd>{bankTransfer.accountName}</dd>
+              </div>
+            ) : null}
             <div className="order-summary-row">
               <dt>{orders.bankTransferContent}</dt>
               <dd>{bankTransfer.transferContent}</dd>

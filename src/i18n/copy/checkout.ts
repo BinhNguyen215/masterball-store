@@ -109,6 +109,7 @@ export const checkoutCopy = defineCopy({
         "Chỉ cần họ tên và số điện thoại; cửa hàng sẽ liên hệ khi hàng sẵn sàng.",
       pickupHint: "Miễn phí giao hàng · {address}",
       pickupTitle: "Nhận tại cửa hàng",
+      pickupMapLabel: "Mở địa chỉ cửa hàng trên Google Maps",
       province: "Tỉnh hoặc thành phố",
       provinceHelp:
         "Phí giao nội địa do máy chủ tính theo tỉnh/thành: TP. Hồ Chí Minh {hcm}; tỉnh/thành khác {other}. Chọn nhận tại cửa hàng để không mất phí giao hàng.",
@@ -242,6 +243,7 @@ export const checkoutCopy = defineCopy({
         "You only need to leave a name and a phone number; the shop will call when the order is ready.",
       pickupHint: "Free delivery · {address}",
       pickupTitle: "Pick up at the store",
+      pickupMapLabel: "Open the store address in Google Maps",
       province: "Province or city",
       provinceHelp:
         "Domestic shipping is calculated by the server per province/city: Ho Chi Minh City {hcm}; other provinces/cities {other}. Choose store pickup to collect your order without a delivery fee.",

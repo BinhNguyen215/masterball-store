@@ -31,6 +31,7 @@ export const chromeCopy = defineCopy({
       privacy: "Quyền riêng tư",
       terms: "Điều khoản",
       designedIn: "Thiết kế riêng cho cộng đồng TCG Việt Nam",
+      addressMapLabel: "Mở địa chỉ cửa hàng trên Google Maps",
     },
     breadcrumb: { home: "Trang chủ", aria: "Đường dẫn trang" },
     actions: {
@@ -82,6 +83,7 @@ export const chromeCopy = defineCopy({
       privacy: "Privacy",
       terms: "Terms",
       designedIn: "Built for the Vietnamese TCG community",
+      addressMapLabel: "Open the store address in Google Maps",
     },
     breadcrumb: { home: "Home", aria: "Breadcrumb" },
     actions: {
