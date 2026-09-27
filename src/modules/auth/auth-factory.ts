@@ -155,6 +155,17 @@ export function createAuth(options: {
         path: "/",
         priority: "high",
       },
+      // Mirror `src/lib/request-ip.ts`: the platform-managed headers first. The
+      // library refuses a multi-valued `x-forwarded-for` and then falls back to
+      // ONE shared bucket per path, which would let a single client lock every
+      // shopper out of sign-in.
+      ipAddress: {
+        ipAddressHeaders: [
+          "x-vercel-forwarded-for",
+          "x-forwarded-for",
+          "x-real-ip",
+        ],
+      },
     },
   });
 }
