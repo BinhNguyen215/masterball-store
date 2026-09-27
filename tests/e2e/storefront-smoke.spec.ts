@@ -139,6 +139,26 @@ test("the locale switcher writes a cookie that the server renders in", async ({
   await expect(heading).toHaveText(/Tìm đúng lá bài/);
 });
 
+test("each locale renders the homepage hero in one language only", async ({
+  page,
+}) => {
+  const hero = () => page.locator(".hero-copy");
+
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "vi");
+  await expect(hero()).toContainText("Chọn đúng.");
+  await expect(hero()).toContainText("Sản phẩm TCG và phụ kiện cho bộ sưu tập");
+  await expect(hero()).not.toContainText("Choose well.");
+  await expect(hero()).not.toContainText("TCG products and accessories for collecting");
+
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(hero()).toContainText("Choose well.");
+  await expect(hero()).toContainText("TCG products and accessories for collecting");
+  await expect(hero()).not.toContainText("Chọn đúng.");
+  await expect(hero()).not.toContainText("Sản phẩm TCG và phụ kiện cho bộ sưu tập");
+});
+
 test("unauthenticated admin requests redirect to login", async ({ page }) => {
   const response = await page.goto("/admin/orders");
 

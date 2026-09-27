@@ -4,6 +4,7 @@ import { catalogCopy } from "./copy/catalog";
 import { productCopy } from "./copy/product";
 import { checkoutCopy } from "./copy/checkout";
 import { ordersCopy } from "./copy/orders";
+import { policiesCopy } from "./copy/policies";
 import { tournamentsCopy } from "./copy/tournaments";
 import type { StorefrontLocale } from "./storefront";
 
@@ -17,6 +18,7 @@ const storefrontCopy = {
     product: productCopy.vi,
     checkout: checkoutCopy.vi,
     orders: ordersCopy.vi,
+    policies: policiesCopy.vi,
     tournaments: tournamentsCopy.vi,
   },
   en: {
@@ -26,6 +28,7 @@ const storefrontCopy = {
     product: productCopy.en,
     checkout: checkoutCopy.en,
     orders: ordersCopy.en,
+    policies: policiesCopy.en,
     tournaments: tournamentsCopy.en,
   },
 } as const;

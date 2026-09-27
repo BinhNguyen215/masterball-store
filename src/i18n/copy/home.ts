@@ -8,11 +8,9 @@ export const homeCopy = defineCopy({
     heroEyebrow: "MasterBall Store",
     heroTitleLead: "Chọn đúng.",
     heroTitleAccent: "Chơi chất.",
-    heroTitleSub: "Choose well. Play better.",
+    heroTitleSub: "Chọn đúng. Chơi chất.",
     heroDescription:
       "Sản phẩm TCG và phụ kiện cho bộ sưu tập, bàn đấu và khoảnh khắc mở pack của bạn.",
-    heroDescriptionEnglish:
-      "TCG products and accessories for collecting, playing and every pack-opening moment.",
     heroShop: "Xem sản phẩm",
     heroEvents: "Lịch giải đấu",
     categoriesTitle: "Đi thẳng vào thế giới bạn chơi",
@@ -44,11 +42,9 @@ export const homeCopy = defineCopy({
     heroEyebrow: "MasterBall Store",
     heroTitleLead: "Choose well.",
     heroTitleAccent: "Play better.",
-    heroTitleSub: "Chọn đúng. Chơi chất.",
+    heroTitleSub: "Choose well. Play better.",
     heroDescription:
       "TCG products and accessories for collecting, playing and every pack-opening moment.",
-    heroDescriptionEnglish:
-      "Sản phẩm TCG và phụ kiện cho bộ sưu tập, bàn đấu và khoảnh khắc mở pack của bạn.",
     heroShop: "Shop products",
     heroEvents: "Events",
     categoriesTitle: "Go straight to the game you play",

@@ -10,11 +10,14 @@ export function isStorefrontLocale(value: unknown): value is StorefrontLocale {
   return typeof value === "string" && STOREFRONT_LOCALES.includes(value as StorefrontLocale);
 }
 
-type CopyTree = { readonly [key: string]: string | CopyTree };
+type CopyValue = string | CopyTree | readonly CopyValue[];
+type CopyTree = { readonly [key: string]: CopyValue };
 
 /**
  * Declares one surface's bilingual copy. Both locales must have the same key
- * shape, which TypeScript enforces through the shared generic.
+ * shape, which TypeScript enforces through the shared generic; a surface with a
+ * list (policy sections, feature rows) types that list explicitly so the two
+ * locales cannot drift.
  */
 export function defineCopy<T extends CopyTree>(
   copy: { [K in StorefrontLocale]: T },

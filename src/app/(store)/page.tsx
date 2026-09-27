@@ -65,11 +65,7 @@ export default async function HomePage() {
               {copy.heroTitleLead} <span>{copy.heroTitleAccent}</span>
               <small>{copy.heroTitleSub}</small>
             </h1>
-            <p className="hero-description">
-              {copy.heroDescription}
-              <br />
-              {copy.heroDescriptionEnglish}
-            </p>
+            <p className="hero-description">{copy.heroDescription}</p>
             <div className="hero-actions">
               <ButtonLink href="/products" icon={ArrowRight}>
                 {copy.heroShop}

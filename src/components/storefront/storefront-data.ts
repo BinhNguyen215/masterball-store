@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import type { ProductFilterValues } from "@/components/storefront/product-filter-form";
+import { formatVnd } from "@/components/storefront/storefront-formatters";
 import { formatCopy, getStorefrontCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
 import type {
   ProductDetailViewModel,
@@ -22,6 +23,7 @@ import {
 } from "@/modules/tournaments/tournament-service";
 
 type StorefrontLabels = {
+  locale: StorefrontLocale;
   catalog: StorefrontCopy["catalog"];
   product: StorefrontCopy["product"];
   tournaments: StorefrontCopy["tournaments"];
@@ -30,6 +32,7 @@ type StorefrontLabels = {
 function labelsFor(locale: StorefrontLocale): StorefrontLabels {
   const copy = getStorefrontCopy(locale);
   return {
+    locale,
     catalog: copy.catalog,
     product: copy.product,
     tournaments: copy.tournaments,
@@ -249,11 +252,7 @@ function mapTournament(tournament: PublishedTournament, labels: StorefrontLabels
       : undefined,
     feeLabel:
       tournament.feeVnd > 0
-        ? new Intl.NumberFormat("vi-VN", {
-            currency: "VND",
-            maximumFractionDigits: 0,
-            style: "currency",
-          }).format(tournament.feeVnd)
+        ? formatVnd(tournament.feeVnd, labels.locale)
         : labels.tournaments.freeEntry,
     game: tournament.game.name,
     location: tournament.venueName ?? labels.tournaments.onlineVenue,
