@@ -69,3 +69,107 @@ export function parseStorefrontProductQuery(
 ): StorefrontProductQuery {
   return storefrontProductQuerySchema.parse(normalizeInput(input));
 }
+
+const STOREFRONT_LIST_KEYS = ["game", "set", "type", "language", "condition"] as const;
+const MAX_LIST_ITEMS = 30;
+const MAX_SEARCH_LENGTH = 100;
+const MAX_PAGE_SIZE = 48;
+const DEFAULT_PAGE_SIZE = 24;
+const PRODUCT_TYPES = ["SEALED", "SINGLE", "ACCESSORY"] as const;
+const AVAILABILITY_VALUES = ["all", "in-stock", "out-of-stock"] as const;
+const SORT_VALUES = [
+  "featured",
+  "newest",
+  "price-asc",
+  "price-desc",
+  "title-asc",
+] as const;
+
+function scalarValue(value: unknown): string | undefined {
+  const candidate = Array.isArray(value)
+    ? value.find((item) => typeof item === "string" && item.trim())
+    : value;
+  if (typeof candidate !== "string") return undefined;
+  const trimmed = candidate.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function listValues(value: unknown): string[] {
+  const items = Array.isArray(value) ? value : [value];
+  return items
+    .flatMap((item) =>
+      item === undefined || item === null ? [] : String(item).split(","),
+    )
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, MAX_LIST_ITEMS);
+}
+
+function boundedInteger(value: unknown, minimum: number, maximum?: number) {
+  const raw = scalarValue(value);
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < minimum) return undefined;
+  if (maximum !== undefined && parsed > maximum) return undefined;
+  return parsed;
+}
+
+function isMember<T extends readonly string[]>(
+  values: T,
+  value: string | undefined,
+): value is T[number] {
+  return value !== undefined && values.includes(value);
+}
+
+/**
+ * Coerces untrusted storefront URL parameters into the accepted query shape.
+ * Public catalog links carry user- and crawler-authored values, so a malformed
+ * or oversized parameter must degrade to a bounded query instead of failing the
+ * render. Programmatic callers keep the strict `parseStorefrontProductQuery`
+ * contract.
+ */
+export function sanitizeStorefrontProductQueryInput(
+  input: StorefrontProductQueryInput = {},
+): Record<string, unknown> {
+  const source = normalizeInput(input);
+  const sanitized: Record<string, unknown> = {};
+
+  const query = scalarValue(source.q)?.slice(0, MAX_SEARCH_LENGTH);
+  if (query) sanitized.q = query;
+
+  for (const key of STOREFRONT_LIST_KEYS) {
+    let values = listValues(source[key]);
+    if (key === "type") {
+      values = values
+        .map((value) => value.toUpperCase())
+        .filter((value) =>
+          isMember(PRODUCT_TYPES, value as (typeof PRODUCT_TYPES)[number]),
+        );
+    }
+    if (values.length) sanitized[key] = values;
+  }
+
+  const availability = scalarValue(source.availability);
+  sanitized.availability = isMember(AVAILABILITY_VALUES, availability)
+    ? availability
+    : "all";
+
+  const sort = scalarValue(source.sort);
+  sanitized.sort = isMember(SORT_VALUES, sort) ? sort : "featured";
+
+  let minPrice = boundedInteger(source.minPrice, 0);
+  let maxPrice = boundedInteger(source.maxPrice, 0);
+  // A contradictory range is dropped rather than rejected.
+  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+    minPrice = undefined;
+    maxPrice = undefined;
+  }
+  if (minPrice !== undefined) sanitized.minPrice = minPrice;
+  if (maxPrice !== undefined) sanitized.maxPrice = maxPrice;
+
+  sanitized.page = boundedInteger(source.page, 1) ?? 1;
+  sanitized.pageSize =
+    boundedInteger(source.pageSize, 1, MAX_PAGE_SIZE) ?? DEFAULT_PAGE_SIZE;
+
+  return sanitized;
+}

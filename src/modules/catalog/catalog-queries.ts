@@ -26,6 +26,7 @@ import {
 
 import {
   parseStorefrontProductQuery,
+  sanitizeStorefrontProductQueryInput,
   type StorefrontProductQuery,
   type StorefrontProductQueryInput,
 } from "./catalog-query-dto";
@@ -194,7 +195,9 @@ async function loadStorefrontProducts(productIds: string[]) {
 export async function listStorefrontProducts(
   input: StorefrontProductQueryInput = {},
 ) {
-  const query = parseStorefrontProductQuery(input);
+  const query = parseStorefrontProductQuery(
+    sanitizeStorefrontProductQueryInput(input),
+  );
   const db = getDb();
   const conditions = storefrontConditions(query);
   const rows = await db

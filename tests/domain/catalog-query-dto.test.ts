@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseStorefrontProductQuery } from "@/modules/catalog";
+import {
+  parseStorefrontProductQuery,
+  sanitizeStorefrontProductQueryInput,
+} from "@/modules/catalog";
 
 describe("storefront catalog query DTO", () => {
   it("parses repeatable shareable filters and applies bounded pagination", () => {
@@ -28,5 +31,42 @@ describe("storefront catalog query DTO", () => {
   it("rejects inverted prices and raw sort expressions", () => {
     expect(() => parseStorefrontProductQuery({ minPrice: 20, maxPrice: 10 })).toThrow();
     expect(() => parseStorefrontProductQuery({ sort: "price desc; drop table products" })).toThrow();
+  });
+
+  it("degrades hostile catalog URLs into a bounded query instead of failing", () => {
+    const params = new URLSearchParams();
+    params.set("page", "abc");
+    params.set("minPrice", "abc");
+    params.set("maxPrice", "0.5");
+    params.set("sort", "price desc; drop table products");
+    params.set("availability", "everything");
+    params.set("type", "SEALED,HOLO");
+    params.set("q", "x".repeat(180));
+    for (let index = 0; index < 40; index += 1) {
+      params.append("game", `game-${index}`);
+    }
+
+    const query = parseStorefrontProductQuery(
+      sanitizeStorefrontProductQueryInput(params),
+    );
+
+    expect(query.page).toBe(1);
+    expect(query.pageSize).toBe(24);
+    expect(query.minPrice).toBeUndefined();
+    expect(query.maxPrice).toBeUndefined();
+    expect(query.sort).toBe("featured");
+    expect(query.availability).toBe("all");
+    expect(query.type).toEqual(["SEALED"]);
+    expect(query.q).toHaveLength(100);
+    expect(query.game).toHaveLength(30);
+  });
+
+  it("drops contradictory price bounds once sanitized", () => {
+    const query = parseStorefrontProductQuery(
+      sanitizeStorefrontProductQueryInput({ minPrice: "500000", maxPrice: "100" }),
+    );
+
+    expect(query.minPrice).toBeUndefined();
+    expect(query.maxPrice).toBeUndefined();
   });
 });
