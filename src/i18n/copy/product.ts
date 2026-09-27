@@ -21,8 +21,14 @@ export const productCopy = defineCopy({
       "Chưa thể cập nhật giỏ hàng lúc này. Vui lòng thử lại sau.",
     cartErrorStock: "Số lượng bạn chọn vượt quá tồn kho hiện tại.",
     cartErrorUnavailable: "Phiên bản này hiện không còn được bán.",
+    cartErrorThrottled:
+      "Bạn thao tác quá nhanh. Vui lòng chờ vài phút rồi thêm vào giỏ lại.",
     cartDisabled:
       "Chức năng thêm vào giỏ chỉ mở khi giá và tồn kho được xác thực từ hệ thống cửa hàng.",
+    galleryLabel: "Thư viện ảnh sản phẩm",
+    galleryThumbnail: "Xem ảnh {index}",
+    relatedTitle: "Sản phẩm liên quan",
+    recentlyViewedTitle: "Bạn vừa xem",
     unavailableTitle: "Sản phẩm chưa sẵn sàng",
     unavailableDescription:
       "Dữ liệu sản phẩm chưa được kết nối hoặc mặt hàng này chưa được xuất bản. Không có giá hay tồn kho tạm nào được hiển thị.",
@@ -47,8 +53,14 @@ export const productCopy = defineCopy({
     cartErrorService: "The cart can't be updated right now. Please try again later.",
     cartErrorStock: "The quantity you chose exceeds the stock currently available.",
     cartErrorUnavailable: "This edition is no longer for sale.",
+    cartErrorThrottled:
+      "You're going too fast. Please wait a few minutes and try adding to cart again.",
     cartDisabled:
       "Add to cart opens once price and stock are verified by the store system.",
+    galleryLabel: "Product image gallery",
+    galleryThumbnail: "View image {index}",
+    relatedTitle: "Related products",
+    recentlyViewedTitle: "Recently viewed",
     unavailableTitle: "Product not ready",
     unavailableDescription:
       "Product data is not connected yet, or this item has not been published. No placeholder price or stock is shown.",

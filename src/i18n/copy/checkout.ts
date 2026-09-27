@@ -21,6 +21,8 @@ export const checkoutCopy = defineCopy({
         invalid: "Số lượng hoặc sản phẩm gửi lên không hợp lệ.",
         service: "Chưa thể cập nhật giỏ hàng lúc này. Vui lòng thử lại sau.",
         stock: "Số lượng yêu cầu vượt quá tồn kho hiện tại.",
+        throttled:
+          "Bạn thao tác quá nhanh. Vui lòng chờ vài phút rồi cập nhật giỏ hàng lại.",
         unavailable: "Sản phẩm này hiện không còn được bán.",
       },
       itemsHeading: "Sản phẩm trong giỏ",
@@ -50,6 +52,9 @@ export const checkoutCopy = defineCopy({
     checkout: {
       metaTitle: "Thanh toán",
       metaDescription: "Nhập thông tin nhận hàng và xác nhận đơn mua TCG.",
+      bankTransferHint:
+        "Thông tin chuyển khoản hiện ra ngay sau khi đặt hàng",
+      bankTransferTitle: "Chuyển khoản ngân hàng (VietQR)",
       breadcrumb: "Thanh toán",
       codHint: "Thanh toán cho nhân viên giao hàng",
       codTitle: "Thanh toán tiền mặt khi nhận hàng - COD",
@@ -58,6 +63,9 @@ export const checkoutCopy = defineCopy({
       consentPrivacy: "chính sách quyền riêng tư",
       consentReturns: "chính sách đổi trả",
       consentTerms: "điều khoản mua hàng",
+      deliveryHint: "Cửa hàng giao đến địa chỉ bạn nhập",
+      deliveryLegend: "Hình thức nhận hàng",
+      deliveryTitle: "Giao hàng tận nơi",
       description:
         "Giá, tồn kho và lựa chọn thanh toán phải được xác thực trước khi đơn hàng được tạo.",
       detailsTitle: "Thông tin nhận hàng",
@@ -77,6 +85,8 @@ export const checkoutCopy = defineCopy({
         service:
           "Chưa thể tạo đơn hàng lúc này. Không có thanh toán nào được xác nhận; vui lòng thử lại.",
         stock: "Một sản phẩm không còn đủ tồn kho. Vui lòng kiểm tra lại giỏ hàng.",
+        throttled:
+          "Bạn đã gửi quá nhiều yêu cầu đặt hàng. Không có đơn hàng nào được tạo; vui lòng chờ vài phút rồi thử lại.",
       },
       line1: "Số nhà và tên đường",
       line2: "Thông tin địa chỉ bổ sung",
@@ -94,14 +104,18 @@ export const checkoutCopy = defineCopy({
       paymentLegend: "Phương thức thanh toán",
       phone: "Số điện thoại",
       phonePlaceholder: "0901 234 567…",
+      pickupAddressLabel: "Địa chỉ nhận hàng",
+      pickupContactNote:
+        "Chỉ cần họ tên và số điện thoại; cửa hàng sẽ liên hệ khi hàng sẵn sàng.",
+      pickupHint: "Miễn phí giao hàng · {address}",
+      pickupTitle: "Nhận tại cửa hàng",
       province: "Tỉnh hoặc thành phố",
       provinceHelp:
-        "Phí giao nội địa do máy chủ tính theo tỉnh/thành: TP. Hồ Chí Minh {hcm}; tỉnh/thành khác {other}. Hiện chưa hỗ trợ nhận tại cửa hàng.",
+        "Phí giao nội địa do máy chủ tính theo tỉnh/thành: TP. Hồ Chí Minh {hcm}; tỉnh/thành khác {other}. Chọn nhận tại cửa hàng để không mất phí giao hàng.",
       provincePlaceholder: "TP. Hồ Chí Minh…",
       provincePlaceholderOption: "Chọn tỉnh hoặc thành phố",
-      qrHint: "Sắp ra mắt · Cần cấu hình tài khoản nhận tiền",
-      qrTitle: "Chuyển khoản qua QR - VCB",
       shipping: "Phí giao hàng",
+      shippingFree: "Miễn phí",
       shippingPending: "Xác nhận khi thanh toán",
       shippingRegionHcm: "TP. Hồ Chí Minh",
       shippingRegionOther: "Tỉnh/thành khác",
@@ -141,6 +155,8 @@ export const checkoutCopy = defineCopy({
         invalid: "The quantity or product submitted is not valid.",
         service: "The cart can't be updated right now. Please try again later.",
         stock: "The requested quantity exceeds the current stock.",
+        throttled:
+          "You are going too fast. Please wait a few minutes and update your cart again.",
         unavailable: "This product is no longer for sale.",
       },
       itemsHeading: "Items in your cart",
@@ -170,6 +186,8 @@ export const checkoutCopy = defineCopy({
     checkout: {
       metaTitle: "Checkout",
       metaDescription: "Enter delivery details and confirm your TCG order.",
+      bankTransferHint: "Transfer details appear as soon as the order is placed",
+      bankTransferTitle: "Bank transfer (VietQR)",
       breadcrumb: "Checkout",
       codHint: "Pay the delivery courier",
       codTitle: "Cash on delivery - COD",
@@ -178,6 +196,9 @@ export const checkoutCopy = defineCopy({
       consentPrivacy: "privacy policy",
       consentReturns: "returns policy",
       consentTerms: "purchase terms",
+      deliveryHint: "The shop delivers to the address you enter",
+      deliveryLegend: "Delivery option",
+      deliveryTitle: "Home delivery",
       description:
         "Prices, stock and payment options are verified before the order is created.",
       detailsTitle: "Delivery details",
@@ -197,6 +218,8 @@ export const checkoutCopy = defineCopy({
         service:
           "The order can't be created right now. No payment was confirmed; please try again.",
         stock: "A product no longer has enough stock. Please review your cart again.",
+        throttled:
+          "You have submitted too many order requests. No order was created; please wait a few minutes and try again.",
       },
       line1: "Street address",
       line2: "Additional address details",
@@ -214,14 +237,18 @@ export const checkoutCopy = defineCopy({
       paymentLegend: "Payment method",
       phone: "Phone number",
       phonePlaceholder: "0901 234 567…",
+      pickupAddressLabel: "Pickup address",
+      pickupContactNote:
+        "You only need to leave a name and a phone number; the shop will call when the order is ready.",
+      pickupHint: "Free delivery · {address}",
+      pickupTitle: "Pick up at the store",
       province: "Province or city",
       provinceHelp:
-        "Domestic shipping is calculated by the server per province/city: Ho Chi Minh City {hcm}; other provinces/cities {other}. In-store pickup is not supported yet.",
+        "Domestic shipping is calculated by the server per province/city: Ho Chi Minh City {hcm}; other provinces/cities {other}. Choose store pickup to collect your order without a delivery fee.",
       provincePlaceholder: "Ho Chi Minh City…",
       provincePlaceholderOption: "Select a province or city",
-      qrHint: "Coming soon · Requires a configured receiving account",
-      qrTitle: "Bank transfer via QR - VCB",
       shipping: "Shipping",
+      shippingFree: "Free",
       shippingPending: "Confirmed at checkout",
       shippingRegionHcm: "Ho Chi Minh City",
       shippingRegionOther: "Other provinces",

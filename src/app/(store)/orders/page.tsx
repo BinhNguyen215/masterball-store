@@ -5,10 +5,13 @@ import { OrderStatusView } from "@/components/storefront/order-status-view";
 import { PageIntro } from "@/components/storefront/page-intro";
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
-import { getOrderById } from "@/modules/orders";
+import { readPickupLocation } from "@/modules/checkout/pickup-location";
+import { getOrderById, listOrderStatusHistory } from "@/modules/orders";
+import { readBankTransferConfig } from "@/modules/payments/bank-transfer";
 
 import { forgetOrder, lookupOrder } from "./actions";
 import {
+  buildOrderStatusExtras,
   firstSearchParam,
   getOrderLookupMessage,
   mapOrderForStorefront,
@@ -36,6 +39,14 @@ export default async function OrderLookupPage({
   const configured = Boolean(process.env.DATABASE_URL?.trim());
   const orderId = configured ? await readOrderAccessOrderId() : null;
   const order = orderId ? await getOrderById(orderId) : null;
+  const orderHistory = order ? await listOrderStatusHistory(order.id) : [];
+  const extras = order
+    ? buildOrderStatusExtras({
+        bankTransferConfig: readBankTransferConfig(),
+        order,
+        pickupLocation: readPickupLocation(),
+      })
+    : { bankTransfer: null, pickup: null };
   const message =
     getOrderLookupMessage(query, copy.orders) ??
     (configured
@@ -53,9 +64,11 @@ export default async function OrderLookupPage({
         {order ? (
           <>
             <OrderStatusView
+              bankTransfer={extras.bankTransfer}
               copy={copy}
               locale={locale}
-              order={mapOrderForStorefront(order, copy.orders)}
+              order={mapOrderForStorefront(order, copy.orders, orderHistory)}
+              pickup={extras.pickup}
             />
             <form action={forgetOrder} className="button-row">
               <button className="button button--secondary" type="submit">

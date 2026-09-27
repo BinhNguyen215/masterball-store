@@ -9,12 +9,14 @@ import { getPaymentEnvironment } from "@/config/environment";
 import { getRequestIpAddress } from "@/lib/request-ip";
 import { CartError } from "@/modules/cart";
 import { CheckoutError, CheckoutService, getVietnamShippingFee } from "@/modules/checkout";
+import { consumeGuestRateLimit } from "@/modules/orders";
 import { buildVnpayPaymentUrl, type VnpayConfig } from "@/modules/payments";
 
 import { clearCartToken, readCartToken } from "../cart/cart-cookie";
 import {
   createCheckoutIdempotencyKey,
   parseCheckoutForm,
+  toCheckoutOrderInput,
 } from "./checkout-commerce";
 
 function checkoutErrorCode(error: unknown): string {
@@ -34,8 +36,17 @@ function checkoutErrorCode(error: unknown): string {
         return "cart";
       case "VARIANT_UNAVAILABLE":
         return "stock";
+      case "COUPON_NOT_FOUND":
+      case "COUPON_INACTIVE":
+      case "COUPON_NOT_STARTED":
+      case "COUPON_EXPIRED":
+      case "COUPON_MIN_ORDER":
+      case "COUPON_EXHAUSTED":
+      case "COUPON_INVALID":
+        return `coupon-${error.code.slice("COUPON_".length).toLowerCase().replace(/_/g, "-")}`;
       case "INVALID_SHIPPING_FEE":
       case "ORDER_TOTAL_TOO_LARGE":
+      case "PICKUP_UNAVAILABLE":
         return "service";
     }
   }
@@ -58,12 +69,19 @@ async function getCheckoutIpAddress(): Promise<string> {
 }
 
 export async function createCheckoutOrder(formData: FormData): Promise<void> {
+  // The throttle and the checkout service both need the database, so the
+  // unconfigured storefront has to bail out before either is reached.
+  if (!process.env.DATABASE_URL?.trim()) redirect("/checkout?error=service");
+
+  const allowed = await consumeGuestRateLimit({
+    clientKey: await getCheckoutIpAddress(),
+    scope: "checkout-submit",
+  });
+  if (!allowed) redirect("/checkout?error=throttled");
+
   let destination: string;
 
   try {
-    if (!process.env.DATABASE_URL?.trim()) {
-      throw new Error("Storefront database is unavailable.");
-    }
     const input = parseCheckoutForm(formData);
     const cartToken = await readCartToken();
     if (!cartToken) throw new CartError("Cart token is missing.", "INVALID_TOKEN");
@@ -71,17 +89,12 @@ export async function createCheckoutOrder(formData: FormData): Promise<void> {
     const vnpayConfig =
       input.paymentMethod === "VNPAY" ? vnpayConfigFromEnvironment() : null;
     const checkout = new CheckoutService(getVietnamShippingFee);
-    const order = await checkout.createOrder({
-      address: input.address,
-      cartToken,
-      cartVersion: input.cartVersion,
-      customerNote: input.customerNote,
-      idempotencyKey: createCheckoutIdempotencyKey(
+    const order = await checkout.createOrder(
+      toCheckoutOrderInput(input, {
         cartToken,
-        input.cartVersion,
-      ),
-      paymentMethod: input.paymentMethod,
-    });
+        idempotencyKey: createCheckoutIdempotencyKey(cartToken, input.cartVersion),
+      }),
+    );
 
     if (order.paymentMethod === "VNPAY") {
       if (order.reused && order.paymentStatus !== "PENDING") {

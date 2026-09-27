@@ -8,6 +8,7 @@ import {
   inArray,
   max,
   min,
+  ne,
   or,
   sql,
   type SQL,
@@ -19,6 +20,7 @@ import {
   inventories,
   mediaAssets,
   productSets,
+  productTags,
   productVariants,
   products,
   tags,
@@ -30,6 +32,53 @@ import {
   type StorefrontProductQuery,
   type StorefrontProductQueryInput,
 } from "./catalog-query-dto";
+
+export type StorefrontProductVariant = {
+  attributes: Record<string, string | number | boolean>;
+  /** Sellable units: `on_hand - reserved`. */
+  available: number;
+  condition: string | null;
+  edition: string | null;
+  finish: string | null;
+  language: string;
+  priceVnd: number;
+  sku: string;
+  variantId: string;
+};
+
+export type StorefrontProductMedia = {
+  altText: string;
+  height: number;
+  id: string;
+  mimeType: string;
+  objectKey: string;
+  productId: string;
+  sortOrder: number;
+  variantId: string | null;
+  width: number;
+};
+
+/** One storefront product with every active variant and every media asset. */
+export type StorefrontProduct = {
+  description: string;
+  featured: boolean;
+  game: { id: string; name: string; slug: string };
+  media: StorefrontProductMedia[];
+  productId: string;
+  seoDescription: string | null;
+  seoTitle: string | null;
+  set: { code: string; id: string; name: string } | null;
+  slug: string;
+  title: string;
+  type: (typeof products.$inferSelect)["type"];
+  variants: StorefrontProductVariant[];
+};
+
+/** A listing row: the product plus the price aggregate across its variants. */
+export type StorefrontProductListItem = StorefrontProduct & {
+  maximumPriceVnd: number | null;
+  minimumPriceVnd: number | null;
+};
 
 function storefrontConditions(query: StorefrontProductQuery): SQL[] {
   const conditions: SQL[] = [
@@ -50,6 +99,17 @@ function storefrontConditions(query: StorefrontProductQuery): SQL[] {
   }
   if (query.game.length) conditions.push(inArray(games.slug, query.game));
   if (query.set.length) conditions.push(inArray(productSets.code, query.set));
+  if (query.tag.length) {
+    // `exists` keeps one row per product, so a product tagged with several
+    // matched tags cannot inflate the price aggregate or the page count.
+    conditions.push(sql`exists (
+      select 1
+      from ${productTags}
+      inner join ${tags} on ${tags.id} = ${productTags.tagId}
+      where ${productTags.productId} = ${products.id}
+        and ${inArray(tags.slug, query.tag)}
+    )`);
+  }
   if (query.type.length) conditions.push(inArray(products.type, query.type));
   if (query.language.length) {
     conditions.push(inArray(productVariants.language, query.language));
@@ -92,7 +152,9 @@ function storefrontOrder(query: StorefrontProductQuery) {
   }
 }
 
-async function loadStorefrontProducts(productIds: string[]) {
+async function loadStorefrontProducts(
+  productIds: string[],
+): Promise<StorefrontProduct[]> {
   if (!productIds.length) return [];
   const db = getDb();
   const [variantRows, imageRows] = await Promise.all([
@@ -194,7 +256,12 @@ async function loadStorefrontProducts(productIds: string[]) {
 
 export async function listStorefrontProducts(
   input: StorefrontProductQueryInput = {},
-) {
+): Promise<{
+  hasNextPage: boolean;
+  items: StorefrontProductListItem[];
+  page: number;
+  pageSize: number;
+}> {
   const query = parseStorefrontProductQuery(
     sanitizeStorefrontProductQueryInput(input),
   );
@@ -223,7 +290,14 @@ export async function listStorefrontProducts(
   const prices = new Map(pageRows.map((row) => [row.id, row]));
 
   return {
-    items: items.map((item) => ({ ...item, ...prices.get(item.productId) })),
+    items: items.map((item) => {
+      const price = prices.get(item.productId);
+      return {
+        ...item,
+        maximumPriceVnd: price?.maximumPriceVnd ?? null,
+        minimumPriceVnd: price?.minimumPriceVnd ?? null,
+      };
+    }),
     page: query.page,
     pageSize: query.pageSize,
     hasNextPage,
@@ -247,6 +321,112 @@ export async function getStorefrontProductBySlug(slug: string) {
     .limit(1);
   if (!row) return null;
   return (await loadStorefrontProducts([row.id]))[0] ?? null;
+}
+
+const RELATED_PRODUCT_LIMIT = 4;
+const RELATED_PRODUCT_LIMIT_MAX = 12;
+const RECENTLY_VIEWED_SLUG_LIMIT = 10;
+
+/**
+ * Related products for a detail page: same set first, then the rest of the game.
+ * Only published products with an active variant and stocked inventory row are
+ * returned, and the variant/media rows are loaded once for the capped id list.
+ */
+export async function listRelatedStorefrontProducts(input: {
+  productId: string;
+  setId: string | null;
+  gameId: string;
+  limit?: number;
+}) {
+  const limit = Math.min(
+    Math.max(Math.trunc(input.limit ?? RELATED_PRODUCT_LIMIT), 1),
+    RELATED_PRODUCT_LIMIT_MAX,
+  );
+  const order: SQL[] = [];
+  if (input.setId) {
+    // coalesce keeps set-less products from sorting first: a NULL comparison
+    // would otherwise outrank a same-set sibling under DESC.
+    order.push(desc(sql`coalesce(${products.setId} = ${input.setId}, false)`));
+  }
+  order.push(desc(products.featured), desc(products.publishedAt), desc(products.id));
+
+  const rows = await getDb()
+    .select({ id: products.id })
+    .from(products)
+    .innerJoin(games, eq(games.id, products.gameId))
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .innerJoin(inventories, eq(inventories.variantId, productVariants.id))
+    .where(
+      and(
+        ne(products.id, input.productId),
+        eq(products.status, "ACTIVE"),
+        eq(productVariants.status, "ACTIVE"),
+        eq(games.status, "ACTIVE"),
+        input.setId
+          ? or(eq(products.setId, input.setId), eq(products.gameId, input.gameId))!
+          : eq(products.gameId, input.gameId),
+      ),
+    )
+    .groupBy(products.id)
+    .orderBy(...order)
+    .limit(limit);
+
+  return loadStorefrontProducts(rows.map((row) => row.id));
+}
+
+/**
+ * Resolves slugs recorded in the visitor's recently-viewed cookie. The stored
+ * recency order is authoritative, so the returned items follow the slug order
+ * and unpublished slugs simply drop out.
+ */
+export async function listStorefrontProductsBySlugs(
+  slugs: readonly string[],
+  limit: number = RELATED_PRODUCT_LIMIT,
+) {
+  const wanted = [
+    ...new Set(slugs.map((slug) => slug.trim()).filter(Boolean)),
+  ].slice(0, Math.min(Math.max(Math.trunc(limit), 1), RECENTLY_VIEWED_SLUG_LIMIT));
+  if (!wanted.length) return [];
+
+  const rows = await getDb()
+    .select({ id: products.id, slug: products.slug })
+    .from(products)
+    .innerJoin(games, eq(games.id, products.gameId))
+    .where(
+      and(
+        inArray(products.slug, wanted),
+        eq(products.status, "ACTIVE"),
+        eq(games.status, "ACTIVE"),
+      ),
+    );
+  const idBySlug = new Map(rows.map((row) => [row.slug, row.id]));
+
+  return loadStorefrontProducts(
+    wanted.flatMap((slug) => {
+      const id = idBySlug.get(slug);
+      return id ? [id] : [];
+    }),
+  );
+}
+
+/** Tags carried by published products, used to populate the catalog tag filter. */
+export async function listStorefrontTags() {
+  return getDb()
+    .selectDistinct({ name: tags.name, slug: tags.slug })
+    .from(tags)
+    .innerJoin(productTags, eq(productTags.tagId, tags.id))
+    .innerJoin(products, eq(products.id, productTags.productId))
+    .innerJoin(games, eq(games.id, products.gameId))
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .innerJoin(inventories, eq(inventories.variantId, productVariants.id))
+    .where(
+      and(
+        eq(products.status, "ACTIVE"),
+        eq(productVariants.status, "ACTIVE"),
+        eq(games.status, "ACTIVE"),
+      ),
+    )
+    .orderBy(asc(tags.name), asc(tags.slug));
 }
 
 export async function listPublishedProductSitemapEntries() {

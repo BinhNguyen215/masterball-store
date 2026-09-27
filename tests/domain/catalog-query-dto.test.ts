@@ -69,4 +69,53 @@ describe("storefront catalog query DTO", () => {
     expect(query.minPrice).toBeUndefined();
     expect(query.maxPrice).toBeUndefined();
   });
+
+  it("normalizes tag slugs carried by a shareable catalog URL", () => {
+    const params = new URLSearchParams();
+    params.append("tag", "Booster-Box");
+    params.append("tag", "pre-order");
+    params.append("tag", "booster-box");
+
+    expect(
+      parseStorefrontProductQuery(sanitizeStorefrontProductQueryInput(params)).tag,
+    ).toEqual(["booster-box", "pre-order"]);
+  });
+
+  it("degrades hostile tag values into a bounded slug list", () => {
+    const params = new URLSearchParams();
+    params.set("tag", "Pokemon-151");
+    params.append("tag", "  ");
+    params.append("tag", "drop table products");
+    params.append("tag", "<script>alert(1)</script>");
+    params.append("tag", `${"a".repeat(200)}-slug`);
+    params.append("tag", "pokemon-151");
+
+    const query = parseStorefrontProductQuery(
+      sanitizeStorefrontProductQueryInput(params),
+    );
+
+    expect(query.tag).toEqual(["pokemon-151"]);
+  });
+
+  it("caps the number of tag filters a hostile URL can carry", () => {
+    const params = new URLSearchParams();
+    for (let index = 0; index < 40; index += 1) {
+      params.append("tag", `tag-${index}`);
+    }
+
+    const query = parseStorefrontProductQuery(
+      sanitizeStorefrontProductQueryInput(params),
+    );
+
+    expect(query.tag).toHaveLength(30);
+    expect(query.tag[0]).toBe("tag-0");
+  });
+
+  it("never throws on non-string tag input", () => {
+    const query = parseStorefrontProductQuery(
+      sanitizeStorefrontProductQueryInput({ tag: { evil: true } }),
+    );
+
+    expect(query.tag).toEqual([]);
+  });
 });

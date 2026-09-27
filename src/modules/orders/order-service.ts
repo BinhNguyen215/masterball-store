@@ -4,11 +4,14 @@ import { and, asc, count, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle
 
 import { getDb } from "@/db";
 import {
+  fulfillmentStatusEnum,
   orderAddresses,
   orderItems,
   orders,
+  orderStatusEnum,
   orderStatusHistory,
   payments,
+  paymentStatusEnum,
   rateLimits,
 } from "@/db/schema";
 import { appendAuditLog } from "@/modules/audit";
@@ -94,16 +97,41 @@ const ORDER_LOOKUP_WINDOW_MS = 10 * 60_000;
 const ORDER_LOOKUP_MAX_ATTEMPTS = 8;
 
 /**
- * Fixed-window throttle for guest lookup attempts, stored in the shared
- * `rateLimit` table so it holds across instances. Returns false when the caller
- * must be rejected; a rejected attempt still records its timestamp.
+ * Fixed-window budgets for the guest endpoints one client can drive. The
+ * mutation scopes are deliberately generous because they only exist to stop a
+ * single client from flooding order creation, never to slow a real shopper
+ * down mid-purchase.
  */
-export async function consumeOrderLookupAttempt(
-  clientKey: string,
-  now: Date = new Date(),
-): Promise<boolean> {
-  const key = `order-lookup:${clientKey}`;
-  const timestamp = now.getTime();
+const GUEST_RATE_LIMITS = {
+  "cart-mutation": { maxAttempts: 30, windowMs: 5 * 60_000 },
+  "checkout-submit": { maxAttempts: 30, windowMs: 5 * 60_000 },
+  "order-lookup": {
+    maxAttempts: ORDER_LOOKUP_MAX_ATTEMPTS,
+    windowMs: ORDER_LOOKUP_WINDOW_MS,
+  },
+  // A shop counter or a playgroup registers several people from one device, so
+  // this bucket is deliberately more generous than the lookup one.
+  "tournament-registration": { maxAttempts: 40, windowMs: 10 * 60_000 },
+  "product-review": { maxAttempts: 10, windowMs: 10 * 60_000 },
+  "restock-alert": { maxAttempts: 20, windowMs: 10 * 60_000 },
+} as const;
+
+export type GuestRateLimitScope = keyof typeof GUEST_RATE_LIMITS;
+
+/**
+ * Fixed-window throttle for guest endpoints, stored in the shared `rateLimit`
+ * table so it holds across instances. Each scope owns its own bucket key so
+ * throttling one endpoint never spends another one's budget. Returns false when
+ * the caller must be rejected; a rejected attempt still records its timestamp.
+ */
+export async function consumeGuestRateLimit(input: {
+  scope: GuestRateLimitScope;
+  clientKey: string;
+  now?: Date;
+}): Promise<boolean> {
+  const { maxAttempts, windowMs } = GUEST_RATE_LIMITS[input.scope];
+  const key = `${input.scope}:${input.clientKey}`;
+  const timestamp = (input.now ?? new Date()).getTime();
   return getDb().transaction(async (tx) => {
     const [row] = await tx
       .select()
@@ -112,7 +140,7 @@ export async function consumeOrderLookupAttempt(
       .limit(1)
       .for("update");
 
-    if (!row || timestamp - row.lastRequest > ORDER_LOOKUP_WINDOW_MS) {
+    if (!row || timestamp - row.lastRequest > windowMs) {
       if (row) {
         await tx
           .update(rateLimits)
@@ -132,8 +160,35 @@ export async function consumeOrderLookupAttempt(
       .update(rateLimits)
       .set({ count, lastRequest: timestamp })
       .where(eq(rateLimits.key, key));
-    return count <= ORDER_LOOKUP_MAX_ATTEMPTS;
+    return count <= maxAttempts;
   });
+}
+
+/**
+ * Fixed-window throttle for guest lookup attempts. Kept as its own entry point
+ * because the lookup form was the first caller and the documented contract is
+ * "reject the ninth attempt in a ten-minute window from one client".
+ */
+export async function consumeOrderLookupAttempt(
+  clientKey: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return consumeGuestRateLimit({ clientKey, now, scope: "order-lookup" });
+}
+
+/**
+ * Recent status history for one order, oldest first. The customer-facing
+ * tracking page reads this instead of the audit trail, so the actor and the
+ * internal reason stay behind the admin boundary.
+ */
+export async function listOrderStatusHistory(orderId: string, limit = 20) {
+  const rows = await getDb()
+    .select()
+    .from(orderStatusHistory)
+    .where(eq(orderStatusHistory.orderId, orderId))
+    .orderBy(desc(orderStatusHistory.createdAt), desc(orderStatusHistory.id))
+    .limit(limit);
+  return rows.reverse();
 }
 
 async function loadOrderBundle(orderId: string) {
@@ -247,15 +302,15 @@ export async function transitionOrder(input: {
       );
     }
     const target = input.toStatus as typeof order.fulfillmentStatus;
+    if (target === "SHIPPED" && !input.trackingNumber?.trim()) {
+      throw new OrderStateError("A tracking number is required when an order is shipped.");
+    }
     if (target === "SHIPPED" && order.paymentMethod === "COD") {
       await commitInventoryReservation(tx, {
         orderId: order.id,
         actorId: input.actorId,
         note: "COD order shipped",
       });
-    }
-    if (target === "SHIPPED" && !input.trackingNumber?.trim()) {
-      throw new OrderStateError("A tracking number is required when an order is shipped.");
     }
     await tx
       .update(orders)
@@ -309,18 +364,35 @@ export function cancelOrder(input: {
   return transitionOrder({ ...input, dimension: "ORDER", toStatus: "CANCELLED" });
 }
 
-/**
- * Records cash collected for a cash-on-delivery order. No payment provider can
- * confirm COD, so the operator who took the money is the source of truth; the
- * change still runs through the payment state machine and writes an order
- * history row plus an audit entry in the same transaction.
- */
-export async function settleCashPayment(input: {
+export type ManualSettlementInput = {
   orderId: string;
   expectedVersion: number;
   actorId: string;
   note: string;
-}) {
+};
+
+export type ManualSettlementMethod = "COD" | "BANK_TRANSFER";
+
+const SETTLEMENT_SCOPE_MESSAGE: Record<ManualSettlementMethod, string> = {
+  COD: "Only cash-on-delivery orders are settled here.",
+  BANK_TRANSFER: "Only bank-transfer orders are settled here.",
+};
+
+/**
+ * Records money an operator confirmed by hand — cash on delivery, or a bank
+ * transfer credited to the shop account. No payment provider can confirm
+ * either, so the operator who took the money is the source of truth; the change
+ * still runs through the payment state machine and writes an order history row
+ * plus an audit entry in the same transaction.
+ *
+ * A bank transfer was created like an online payment (reserved stock with an
+ * expiry), so confirming it also confirms the order and commits the
+ * reservation; a COD order keeps its stock reservation until it ships.
+ */
+async function settleManualPayment(
+  input: ManualSettlementInput,
+  method: ManualSettlementMethod,
+) {
   return getDb().transaction(async (tx) => {
     const [order] = await tx
       .select()
@@ -332,18 +404,25 @@ export async function settleCashPayment(input: {
     if (order.version !== input.expectedVersion) {
       throw new OrderStateError("Order was changed by another request.");
     }
-    if (order.paymentMethod !== "COD") {
-      throw new OrderStateError(
-        "Only cash-on-delivery orders are settled here.",
-      );
+    if (order.paymentMethod !== method) {
+      throw new OrderStateError(SETTLEMENT_SCOPE_MESSAGE[method]);
     }
     if (order.orderStatus === "CANCELLED") {
-      throw new OrderStateError("A cancelled order cannot collect cash.");
+      throw new OrderStateError(
+        order.paymentMethod === "BANK_TRANSFER"
+          ? "A cancelled order cannot be settled."
+          : "A cancelled order cannot collect cash.",
+      );
     }
     if (!canTransition(paymentTransitions, order.paymentStatus, "PAID")) {
       throw new OrderStateError(
         `Payment cannot transition from ${order.paymentStatus} to PAID.`,
       );
+    }
+    // `canTransition` accepts a no-op transition, so settling twice would
+    // record a second collection for money that is already in the till.
+    if (order.paymentStatus === "PAID") {
+      throw new OrderStateError("This order is already marked as paid.");
     }
     const now = new Date();
     const [payment] = await tx
@@ -353,8 +432,28 @@ export async function settleCashPayment(input: {
       .limit(1)
       .for("update");
     if (!payment) {
-      throw new OrderStateError("The cash payment record was not found.");
+      throw new OrderStateError(
+        order.paymentMethod === "BANK_TRANSFER"
+          ? "The bank-transfer payment record was not found."
+          : "The cash payment record was not found.",
+      );
     }
+
+    const isBankTransfer = order.paymentMethod === "BANK_TRANSFER";
+    if (isBankTransfer) {
+      await commitInventoryReservation(tx, {
+        orderId: order.id,
+        actorId: input.actorId,
+        note: "Bank transfer confirmed",
+      });
+    }
+    // A bank transfer was created as an online payment, so confirming the
+    // money confirms the order too. The order state machine stays the owner of
+    // that move: a completed or cancelled order is left exactly as it is.
+    const orderStatus =
+      isBankTransfer && canTransition(orderTransitions, order.orderStatus, "CONFIRMED")
+        ? "CONFIRMED"
+        : order.orderStatus;
 
     await tx
       .update(payments)
@@ -364,32 +463,67 @@ export async function settleCashPayment(input: {
       .update(orders)
       .set({
         paymentStatus: "PAID",
+        orderStatus,
         version: sql`${orders.version} + 1`,
         updatedAt: now,
       })
       .where(eq(orders.id, order.id));
-    await tx.insert(orderStatusHistory).values({
-      orderId: order.id,
-      actorId: input.actorId,
-      dimension: "PAYMENT",
-      fromStatus: order.paymentStatus,
-      toStatus: "PAID",
-      reason: input.note,
-    });
+    await tx.insert(orderStatusHistory).values([
+      {
+        orderId: order.id,
+        actorId: input.actorId,
+        dimension: "PAYMENT",
+        fromStatus: order.paymentStatus,
+        toStatus: "PAID",
+        reason: input.note,
+      },
+      ...(orderStatus === order.orderStatus
+        ? []
+        : [
+            {
+              orderId: order.id,
+              actorId: input.actorId,
+              dimension: "ORDER",
+              fromStatus: order.orderStatus,
+              toStatus: orderStatus,
+              reason: input.note,
+            },
+          ]),
+    ]);
     await appendAuditLog(tx, {
       actorId: input.actorId,
       action: "order.payment.settle",
       subjectType: "order",
       subjectId: order.id,
-      before: { paymentStatus: order.paymentStatus, version: order.version },
-      after: { paymentStatus: "PAID", version: order.version + 1 },
+      before: {
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        version: order.version,
+      },
+      after: {
+        orderStatus,
+        paymentStatus: "PAID",
+        paymentMethod: order.paymentMethod,
+        version: order.version + 1,
+      },
     });
     return {
       ...order,
+      orderStatus,
       paymentStatus: "PAID" as const,
       version: order.version + 1,
     };
   });
+}
+
+/** Cash collected at the door. */
+export function settleCashPayment(input: ManualSettlementInput) {
+  return settleManualPayment(input, "COD");
+}
+
+/** Money credited to the shop account and confirmed from the payments console. */
+export function settleBankTransferPayment(input: ManualSettlementInput) {
+  return settleManualPayment(input, "BANK_TRANSFER");
 }
 
 export async function expirePendingOrders(
@@ -472,7 +606,22 @@ export async function listAdminOrders(input: {
     )!);
   }
   if (input.status) {
-    conditions.push(sql`(${orders.orderStatus}::text = ${input.status} or ${orders.paymentStatus}::text = ${input.status} or ${orders.fulfillmentStatus}::text = ${input.status})`);
+    // Compare against each enum column directly so the status indexes stay
+    // usable; a value that belongs to none of the three enums matches nothing.
+    const status = input.status;
+    const perDimension: SQL[] = [];
+    if ((orderStatusEnum.enumValues as readonly string[]).includes(status)) {
+      perDimension.push(sql`${orders.orderStatus} = ${status}::order_status`);
+    }
+    if ((paymentStatusEnum.enumValues as readonly string[]).includes(status)) {
+      perDimension.push(sql`${orders.paymentStatus} = ${status}::payment_status`);
+    }
+    if ((fulfillmentStatusEnum.enumValues as readonly string[]).includes(status)) {
+      perDimension.push(
+        sql`${orders.fulfillmentStatus} = ${status}::fulfillment_status`,
+      );
+    }
+    conditions.push(perDimension.length ? or(...perDimension)! : sql`false`);
   }
   const where = conditions.length ? and(...conditions) : undefined;
   const db = getDb();

@@ -23,6 +23,7 @@ export const storefrontProductQuerySchema = z
     ),
     game: listValue,
     set: listValue,
+    tag: listValue,
     type: listValue.pipe(z.array(z.enum(["SEALED", "SINGLE", "ACCESSORY"]))),
     language: listValue,
     condition: listValue,
@@ -70,10 +71,21 @@ export function parseStorefrontProductQuery(
   return storefrontProductQuerySchema.parse(normalizeInput(input));
 }
 
-const STOREFRONT_LIST_KEYS = ["game", "set", "type", "language", "condition"] as const;
+const STOREFRONT_LIST_KEYS = [
+  "game",
+  "set",
+  "tag",
+  "type",
+  "language",
+  "condition",
+] as const;
 const MAX_LIST_ITEMS = 30;
 const MAX_SEARCH_LENGTH = 100;
+const MAX_SLUG_LENGTH = 160;
+/** Mirrors the catalog slug contract, so only reachable tags survive sanitizing. */
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_PAGE_SIZE = 48;
+const MAX_PAGE_NUMBER = 1_000;
 const DEFAULT_PAGE_SIZE = 24;
 const PRODUCT_TYPES = ["SEALED", "SINGLE", "ACCESSORY"] as const;
 const AVAILABILITY_VALUES = ["all", "in-stock", "out-of-stock"] as const;
@@ -146,6 +158,20 @@ export function sanitizeStorefrontProductQueryInput(
           isMember(PRODUCT_TYPES, value as (typeof PRODUCT_TYPES)[number]),
         );
     }
+    if (key === "tag") {
+      // Tag slugs are the only list parameter matched against a slug column, so
+      // anything outside the catalog slug contract is dropped instead of quoted.
+      values = [
+        ...new Set(
+          values
+            .map((value) => value.toLowerCase())
+            .filter(
+              (value) =>
+                value.length <= MAX_SLUG_LENGTH && SLUG_PATTERN.test(value),
+            ),
+        ),
+      ];
+    }
     if (values.length) sanitized[key] = values;
   }
 
@@ -167,7 +193,9 @@ export function sanitizeStorefrontProductQueryInput(
   if (minPrice !== undefined) sanitized.minPrice = minPrice;
   if (maxPrice !== undefined) sanitized.maxPrice = maxPrice;
 
-  sanitized.page = boundedInteger(source.page, 1) ?? 1;
+  // A page number is also an OFFSET multiplier, so an unbounded value would ask
+  // Postgres to skip an arbitrary number of rows.
+  sanitized.page = boundedInteger(source.page, 1, MAX_PAGE_NUMBER) ?? 1;
   sanitized.pageSize =
     boundedInteger(source.pageSize, 1, MAX_PAGE_SIZE) ?? DEFAULT_PAGE_SIZE;
 

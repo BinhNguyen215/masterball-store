@@ -38,6 +38,7 @@ export const catalogCopy = defineCopy({
       more: "Bộ lọc chi tiết",
       set: "Mã bộ thẻ",
       setPlaceholder: "Ví dụ: SV08…",
+      tag: "Nhãn sản phẩm",
       language: "Ngôn ngữ",
       languageVi: "Tiếng Việt",
       languageEn: "Tiếng Anh",
@@ -63,6 +64,7 @@ export const catalogCopy = defineCopy({
     card: {
       available: "Có thể đặt mua",
       outOfStock: "Tạm hết hàng",
+      lowStock: "Sắp hết · còn {count}",
       imageAlt: "Ảnh sản phẩm",
     },
     productType: {
@@ -107,6 +109,7 @@ export const catalogCopy = defineCopy({
       more: "More filters",
       set: "Set code",
       setPlaceholder: "For example: SV08…",
+      tag: "Product tag",
       language: "Language",
       languageVi: "Vietnamese",
       languageEn: "English",
@@ -132,6 +135,7 @@ export const catalogCopy = defineCopy({
     card: {
       available: "Available to order",
       outOfStock: "Out of stock",
+      lowStock: "Low stock · {count} left",
       imageAlt: "Product image",
     },
     productType: {

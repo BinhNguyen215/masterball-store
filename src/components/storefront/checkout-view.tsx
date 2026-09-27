@@ -7,7 +7,9 @@ import { useState } from "react";
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { CartLineItemViewModel } from "@/components/storefront/storefront-types";
 import { formatCopy, type StorefrontCopy, type StorefrontLocale } from "@/i18n";
+import type { PickupLocation } from "@/modules/checkout/pickup-location";
 import {
+  getCheckoutShippingFee,
   getVietnamShippingFee,
   HO_CHI_MINH_SHIPPING_VND,
   OTHER_PROVINCE_SHIPPING_VND,
@@ -18,36 +20,51 @@ type CheckoutAction = (formData: FormData) => Promise<void>;
 type CheckoutCopy = StorefrontCopy["checkout"]["checkout"];
 
 type CheckoutViewProps = {
+  /** Money that reaches the shop account before the order is fulfilled. */
+  bankTransferAvailable?: boolean;
   cartVersion?: number;
   checkoutAction?: CheckoutAction;
   copy: CheckoutCopy;
+  coupons: StorefrontCopy["coupons"];
   enabled: boolean;
   items: CartLineItemViewModel[];
   locale: StorefrontLocale;
   message?: { kind: "error" | "success"; text: string };
+  /** Null when the deployment has no shop address, which hides pickup. */
+  pickup: PickupLocation | null;
   provinces: VietnamProvince[];
   subtotalVnd: number;
 };
 
 export function CheckoutView({
+  bankTransferAvailable = false,
   cartVersion,
   checkoutAction,
   copy,
+  coupons,
   enabled,
   items,
   locale,
   message,
+  pickup,
   provinces,
   subtotalVnd,
 }: CheckoutViewProps) {
   const [province, setProvince] = useState("");
+  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
+  const collecting = fulfillment === "PICKUP";
   const hasProvince = province.trim().length > 0;
-  const shippingVnd = hasProvince ? getVietnamShippingFee({ province }) : null;
-  const shippingRegion = hasProvince
-    ? shippingVnd === HO_CHI_MINH_SHIPPING_VND
-      ? copy.shippingRegionHcm
-      : copy.shippingRegionOther
-    : null;
+  const shippingVnd = collecting
+    ? getCheckoutShippingFee({ fulfillment: "PICKUP", province })
+    : hasProvince
+      ? getCheckoutShippingFee({ fulfillment: "DELIVERY", province })
+      : null;
+  const shippingRegion =
+    collecting || !hasProvince
+      ? null
+      : getVietnamShippingFee({ province }) === HO_CHI_MINH_SHIPPING_VND
+        ? copy.shippingRegionHcm
+        : copy.shippingRegionOther;
   const hasProvinceList = provinces.length > 0;
 
   return (
@@ -66,6 +83,43 @@ export function CheckoutView({
         ) : null}
         <form action={checkoutAction} className="checkout-form">
           <input name="cartVersion" type="hidden" value={cartVersion} />
+          {pickup ? (
+            <fieldset className="payment-methods">
+              <legend className="field-label">{copy.deliveryLegend}</legend>
+              <label className="payment-method">
+                <input
+                  checked={!collecting}
+                  disabled={!enabled}
+                  name="fulfillment"
+                  onChange={() => setFulfillment("DELIVERY")}
+                  type="radio"
+                  value="DELIVERY"
+                />
+                <span aria-hidden="true" className="payment-method-icon">🛵</span>
+                <span>
+                  <strong>{copy.deliveryTitle}</strong>
+                  <small>{copy.deliveryHint}</small>
+                </span>
+              </label>
+              <label className="payment-method">
+                <input
+                  checked={collecting}
+                  disabled={!enabled}
+                  name="fulfillment"
+                  onChange={() => setFulfillment("PICKUP")}
+                  type="radio"
+                  value="PICKUP"
+                />
+                <span aria-hidden="true" className="payment-method-icon">🏬</span>
+                <span>
+                  <strong>{copy.pickupTitle}</strong>
+                  <small>
+                    {formatCopy(copy.pickupHint, { address: pickup.address })}
+                  </small>
+                </span>
+              </label>
+            </fieldset>
+          ) : null}
           <div className="field">
             <label className="field-label" htmlFor="checkout-name">
               {copy.name}
@@ -113,102 +167,115 @@ export function CheckoutView({
               type="email"
             />
           </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-line-1">
-              {copy.line1}
-            </label>
-            <input
-              autoComplete="address-line1"
-              disabled={!enabled}
-              id="checkout-line-1"
-              maxLength={250}
-              name="line1"
-              required
-              type="text"
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-line-2">
-              {copy.line2} <span className="field-help">{copy.optional}</span>
-            </label>
-            <input
-              autoComplete="address-line2"
-              disabled={!enabled}
-              id="checkout-line-2"
-              maxLength={250}
-              name="line2"
-              type="text"
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-ward">
-              {copy.ward} <span className="field-help">{copy.optional}</span>
-            </label>
-            <input
-              autoComplete="address-level3"
-              disabled={!enabled}
-              id="checkout-ward"
-              maxLength={120}
-              name="ward"
-              type="text"
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-district">
-              {copy.district}
-            </label>
-            <input
-              autoComplete="address-level2"
-              disabled={!enabled}
-              id="checkout-district"
-              maxLength={120}
-              name="district"
-              required
-              type="text"
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="checkout-province">
-              {copy.province}
-            </label>
-            {hasProvinceList ? (
-              <select
-                autoComplete="address-level1"
-                disabled={!enabled}
-                id="checkout-province"
-                name="province"
-                onChange={(event) => setProvince(event.target.value)}
-                required
-                value={province}
-              >
-                <option value="">{copy.provincePlaceholderOption}</option>
-                {provinces.map((option) => (
-                  <option key={option.code} value={option.name}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                autoComplete="address-level1"
-                disabled={!enabled}
-                id="checkout-province"
-                maxLength={120}
-                name="province"
-                onChange={(event) => setProvince(event.target.value)}
-                placeholder={copy.provincePlaceholder}
-                required
-                type="text"
-                value={province}
-              />
-            )}
-            <p className="field-help">
-              {formatCopy(copy.provinceHelp, {
-                hcm: formatVnd(HO_CHI_MINH_SHIPPING_VND, locale),
-                other: formatVnd(OTHER_PROVINCE_SHIPPING_VND, locale),
-              })}
-            </p>
-          </div>
+          {collecting ? (
+            <div className="field">
+              <span className="field-label">{copy.pickupAddressLabel}</span>
+              <p>
+                {pickup?.storeName ? `${pickup.storeName} · ` : ""}
+                {pickup?.address}
+              </p>
+              <p className="field-help">{copy.pickupContactNote}</p>
+            </div>
+          ) : (
+            <>
+              <div className="field">
+                <label className="field-label" htmlFor="checkout-line-1">
+                  {copy.line1}
+                </label>
+                <input
+                  autoComplete="address-line1"
+                  disabled={!enabled}
+                  id="checkout-line-1"
+                  maxLength={250}
+                  name="line1"
+                  required
+                  type="text"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="checkout-line-2">
+                  {copy.line2} <span className="field-help">{copy.optional}</span>
+                </label>
+                <input
+                  autoComplete="address-line2"
+                  disabled={!enabled}
+                  id="checkout-line-2"
+                  maxLength={250}
+                  name="line2"
+                  type="text"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="checkout-ward">
+                  {copy.ward} <span className="field-help">{copy.optional}</span>
+                </label>
+                <input
+                  autoComplete="address-level3"
+                  disabled={!enabled}
+                  id="checkout-ward"
+                  maxLength={120}
+                  name="ward"
+                  type="text"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="checkout-district">
+                  {copy.district}
+                </label>
+                <input
+                  autoComplete="address-level2"
+                  disabled={!enabled}
+                  id="checkout-district"
+                  maxLength={120}
+                  name="district"
+                  required
+                  type="text"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="checkout-province">
+                  {copy.province}
+                </label>
+                {hasProvinceList ? (
+                  <select
+                    autoComplete="address-level1"
+                    disabled={!enabled}
+                    id="checkout-province"
+                    name="province"
+                    onChange={(event) => setProvince(event.target.value)}
+                    required
+                    value={province}
+                  >
+                    <option value="">{copy.provincePlaceholderOption}</option>
+                    {provinces.map((option) => (
+                      <option key={option.code} value={option.name}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    autoComplete="address-level1"
+                    disabled={!enabled}
+                    id="checkout-province"
+                    maxLength={120}
+                    name="province"
+                    onChange={(event) => setProvince(event.target.value)}
+                    placeholder={copy.provincePlaceholder}
+                    required
+                    type="text"
+                    value={province}
+                  />
+                )}
+                <p className="field-help">
+                  {formatCopy(copy.provinceHelp, {
+                    hcm: formatVnd(HO_CHI_MINH_SHIPPING_VND, locale),
+                    other: formatVnd(OTHER_PROVINCE_SHIPPING_VND, locale),
+                  })}
+                </p>
+              </div>
+            </>
+          )}
           <fieldset className="payment-methods">
             <legend className="field-label">{copy.paymentLegend}</legend>
             <label className="payment-method">
@@ -238,13 +305,21 @@ export function CheckoutView({
                 <small>{copy.codHint}</small>
               </span>
             </label>
-            <div aria-disabled="true" className="payment-method payment-method--disabled">
-              <span aria-hidden="true" className="payment-method-icon">▦</span>
-              <span>
-                <strong>{copy.qrTitle}</strong>
-                <small>{copy.qrHint}</small>
-              </span>
-            </div>
+            {bankTransferAvailable ? (
+              <label className="payment-method">
+                <input
+                  disabled={!enabled}
+                  name="paymentMethod"
+                  type="radio"
+                  value="BANK_TRANSFER"
+                />
+                <span aria-hidden="true" className="payment-method-icon">🏦</span>
+                <span>
+                  <strong>{copy.bankTransferTitle}</strong>
+                  <small>{copy.bankTransferHint}</small>
+                </span>
+              </label>
+            ) : null}
             <p className="field-help">{copy.vnpayNote}</p>
           </fieldset>
           <div className="field">
@@ -258,6 +333,22 @@ export function CheckoutView({
               name="customerNote"
               rows={4}
             />
+          </div>
+          <div className="field">
+            <label htmlFor="checkout-coupon">
+              {coupons.fieldLabel}{" "}
+              <span className="field-help">{copy.optional}</span>
+            </label>
+            <input
+              autoComplete="off"
+              disabled={!enabled}
+              id="checkout-coupon"
+              maxLength={32}
+              name="couponCode"
+              placeholder={coupons.fieldPlaceholder}
+              type="text"
+            />
+            <p className="field-help">{coupons.emptyHint}</p>
           </div>
           <label className="consent-field">
             <input
@@ -303,15 +394,17 @@ export function CheckoutView({
             </div>
             <div className="order-summary-row">
               <dt>
-                {copy.shipping}
+                {collecting ? copy.pickupTitle : copy.shipping}
                 {shippingRegion ? (
                   <span className="field-help"> ({shippingRegion})</span>
                 ) : null}
               </dt>
               <dd>
-                {shippingVnd === null
-                  ? copy.shippingPending
-                  : formatVnd(shippingVnd, locale)}
+                {collecting
+                  ? copy.shippingFree
+                  : shippingVnd === null
+                    ? copy.shippingPending
+                    : formatVnd(shippingVnd, locale)}
               </dd>
             </div>
             <div className="order-summary-row">

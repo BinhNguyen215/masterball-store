@@ -46,10 +46,97 @@ export function getProductCartMessage(
     invalid: copy.cartErrorInvalid,
     service: copy.cartErrorService,
     stock: copy.cartErrorStock,
+    throttled: copy.cartErrorThrottled,
     unavailable: copy.cartErrorUnavailable,
   };
 
   return error && messages[error]
     ? { kind: "error", text: messages[error] }
     : undefined;
+}
+
+/** One localized notice the product page shows for a guest submission. */
+export type ProductNotice = {
+  kind: "error" | "success";
+  text: string;
+};
+
+function readFormString(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Reads the five fields the review form posts. Ranges are not re-checked here:
+ * the review service validates them and answers a typed failure, so the page
+ * only has to translate the outcome into a notice.
+ */
+export function readProductReviewForm(formData: FormData) {
+  return {
+    authorName: readFormString(formData, "authorName"),
+    body: readFormString(formData, "body"),
+    orderNumber: readFormString(formData, "orderNumber"),
+    phone: readFormString(formData, "phone"),
+    rating: Number(readFormString(formData, "rating")),
+  };
+}
+
+/** Reads the two fields the restock form posts; the alert service validates both. */
+export function readRestockAlertForm(formData: FormData) {
+  return {
+    email: readFormString(formData, "email"),
+    variantId: readFormString(formData, "variantId"),
+  };
+}
+
+/**
+ * Turns the review query the server action redirects with into the one notice
+ * the section shows. A code the action never emits (a hand-edited URL) renders
+ * no notice at all rather than an empty one.
+ */
+export function getProductReviewMessage(
+  query: { review?: string | string[] },
+  copy: StorefrontCopy["reviews"],
+): ProductNotice | undefined {
+  const review = (Array.isArray(query.review) ? query.review[0] : query.review) ?? "";
+  if (review === "recorded") {
+    return { kind: "success", text: copy.pendingNotice };
+  }
+
+  const errors: Record<string, string> = {
+    duplicate: copy.errors.duplicate,
+    invalid: copy.errors.invalid,
+    notfound: copy.errors.notFound,
+    service: copy.errors.service,
+    throttled: copy.errors.throttled,
+  };
+  const text = errors[review];
+  return text ? { kind: "error", text } : undefined;
+}
+
+/**
+ * Turns the restock query the server action redirects with into the one notice
+ * the summary shows. A recording and an already-registered address are both
+ * informational; everything else is an error.
+ */
+export function getRestockMessage(
+  query: { restock?: string | string[] },
+  copy: StorefrontCopy["restock"],
+): ProductNotice | undefined {
+  const restock = (Array.isArray(query.restock) ? query.restock[0] : query.restock) ?? "";
+  if (restock === "recorded") {
+    return { kind: "success", text: copy.successNotice };
+  }
+  if (restock === "existing") {
+    return { kind: "success", text: copy.alreadyNotice };
+  }
+
+  const errors: Record<string, string> = {
+    invalid: copy.errors.invalid,
+    service: copy.errors.service,
+    throttled: copy.errors.throttled,
+    unavailable: copy.errors.unavailable,
+  };
+  const text = errors[restock];
+  return text ? { kind: "error", text } : undefined;
 }

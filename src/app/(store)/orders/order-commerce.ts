@@ -1,7 +1,17 @@
 import { z } from "zod";
 
-import type { OrderStatusViewModel } from "@/components/storefront/storefront-types";
+import type {
+  OrderStatusViewModel,
+  OrderTimelineEntry,
+} from "@/components/storefront/storefront-types";
 import type { StorefrontCopy } from "@/i18n";
+import { readFulfillmentChoice } from "@/modules/checkout/fulfillment-choice";
+import type { PickupLocation } from "@/modules/checkout/pickup-location";
+import {
+  buildBankTransferInstruction,
+  type BankTransferConfig,
+  type BankTransferInstruction,
+} from "@/modules/payments/bank-transfer";
 
 type OrderCopy = StorefrontCopy["orders"];
 
@@ -56,7 +66,9 @@ type StorefrontOrder = {
   paymentMethod: string;
   subtotalVnd: number;
   shippingVnd: number;
+  discountVnd: number;
   totalVnd: number;
+  trackingNumber: string | null;
   createdAt: Date;
   items: Array<{
     id: string;
@@ -127,14 +139,57 @@ function paymentMethodLabel(method: string, copy: OrderCopy): string {
       return copy.paymentMethodVnpay;
     case "COD":
       return copy.paymentMethodCod;
+    case "BANK_TRANSFER":
+      return copy.paymentMethodBankTransfer;
     default:
       return copy.statusFallback;
   }
 }
 
+/**
+ * The subset of `order_status_history` the customer view may show. `actorId` and
+ * the free-text reason are deliberately absent: they are staff-only detail.
+ */
+type StorefrontOrderHistoryEntry = {
+  id: string;
+  dimension: string;
+  toStatus: string;
+  createdAt: Date;
+};
+
+const ORDER_TIMELINE_LIMIT = 20;
+
+/**
+ * Customer-facing timeline: fulfilment and order transitions only, oldest
+ * first, and never longer than the page can usefully show.
+ */
+function mapOrderTimeline(
+  history: StorefrontOrderHistoryEntry[],
+  copy: OrderCopy,
+): OrderTimelineEntry[] {
+  return history
+    .filter(
+      (entry) => entry.dimension === "ORDER" || entry.dimension === "FULFILLMENT",
+    )
+    .slice(-ORDER_TIMELINE_LIMIT)
+    .map((entry) => ({
+      createdAt: entry.createdAt.toISOString(),
+      dimensionLabel:
+        entry.dimension === "FULFILLMENT"
+          ? copy.timelineFulfillment
+          : copy.timelineOrder,
+      id: entry.id,
+      statusLabel:
+        entry.dimension === "FULFILLMENT"
+          ? fulfillmentStatusLabel(entry.toStatus, copy)
+          : orderStatusLabel(entry.toStatus, copy),
+    }));
+}
+
 export function mapOrderForStorefront(
   order: StorefrontOrder,
   copy: OrderCopy,
+  history: StorefrontOrderHistoryEntry[] = [],
 ): OrderStatusViewModel {
   return {
     createdAt: order.createdAt.toISOString(),
@@ -150,9 +205,50 @@ export function mapOrderForStorefront(
     paymentMethodLabel: paymentMethodLabel(order.paymentMethod, copy),
     paymentStatusLabel: paymentStatusLabel(order.paymentStatus, copy),
     reference: order.orderNumber,
+    discountVnd: order.discountVnd,
     shippingVnd: order.shippingVnd,
     statusLabel: orderStatusLabel(order.orderStatus, copy),
     subtotalVnd: order.subtotalVnd,
+    timeline: mapOrderTimeline(history, copy),
     totalVnd: order.totalVnd,
+    trackingNumber: order.trackingNumber?.trim() || null,
   };
+}
+
+/**
+ * The status-page facts that are not columns on the order: the transfer details
+ * while a bank transfer still awaits payment, and the shop address when the
+ * order is collected instead of delivered.
+ */
+export type OrderStatusExtras = {
+  bankTransfer: BankTransferInstruction | null;
+  pickup: PickupLocation | null;
+};
+
+export function buildOrderStatusExtras(input: {
+  order: {
+    customerNote: string | null;
+    orderNumber: string;
+    paymentMethod: string;
+    paymentStatus: string;
+    totalVnd: number;
+  };
+  bankTransferConfig: BankTransferConfig | null;
+  pickupLocation: PickupLocation | null;
+}): OrderStatusExtras {
+  const pickup =
+    input.pickupLocation &&
+    readFulfillmentChoice({ customerNote: input.order.customerNote }) === "PICKUP"
+      ? input.pickupLocation
+      : null;
+  const bankTransfer =
+    input.order.paymentMethod === "BANK_TRANSFER" &&
+    input.order.paymentStatus === "PENDING"
+      ? buildBankTransferInstruction({
+          amountVnd: input.order.totalVnd,
+          config: input.bankTransferConfig,
+          orderNumber: input.order.orderNumber,
+        })
+      : null;
+  return { bankTransfer, pickup };
 }

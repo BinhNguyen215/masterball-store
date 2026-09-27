@@ -1,10 +1,10 @@
-import { CircleCheck, CircleOff } from "lucide-react";
+import { CircleCheck, CircleOff, TriangleAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { formatVnd } from "@/components/storefront/storefront-formatters";
 import type { ProductViewModel } from "@/components/storefront/storefront-types";
-import { getStorefrontCopy, type StorefrontLocale } from "@/i18n";
+import { formatCopy, getStorefrontCopy, type StorefrontLocale } from "@/i18n";
 
 type ProductCardProps = {
   locale: StorefrontLocale;
@@ -13,7 +13,16 @@ type ProductCardProps = {
 
 export function ProductCard({ locale, product }: ProductCardProps) {
   const copy = getStorefrontCopy(locale).catalog.card;
-  const AvailabilityIcon = product.available ? CircleCheck : CircleOff;
+  const AvailabilityIcon = !product.available
+    ? CircleOff
+    : product.lowStock
+      ? TriangleAlert
+      : CircleCheck;
+  const availabilityLabel = !product.available
+    ? copy.outOfStock
+    : product.lowStock
+      ? formatCopy(copy.lowStock, { count: product.availableUnits })
+      : copy.available;
 
   return (
     <article className="product-card">
@@ -37,9 +46,9 @@ export function ProductCard({ locale, product }: ProductCardProps) {
           <Link href={`/products/${product.slug}`}>{product.name}</Link>
         </h2>
         <span className="price">{formatVnd(product.priceVnd, locale)}</span>
-        <span className="availability">
+        <span className="availability" data-low-stock={product.lowStock ? "true" : undefined}>
           <AvailabilityIcon aria-hidden="true" size={16} strokeWidth={1.8} />
-          {product.available ? copy.available : copy.outOfStock}
+          {availabilityLabel}
         </span>
       </div>
     </article>

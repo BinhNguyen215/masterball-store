@@ -11,6 +11,7 @@ import {
 import { appendAuditLog } from "@/modules/audit";
 
 import { InventoryError } from "./inventory-errors";
+import { queueRestockNotifications } from "./restock-alert-service";
 
 export type InventoryReservationItem = {
   variantId: string;
@@ -95,6 +96,7 @@ export async function adjustInventoryInTransaction(
   const hasStockDelta = input.onHandDelta !== 0;
   const locked = await lockInventoryRows(tx, [input.variantId]);
   const current = locked.get(input.variantId)!;
+  const availableBefore = current.onHand - current.reserved;
   const onHandAfter = current.onHand + input.onHandDelta;
   if (onHandAfter < current.reserved) {
     throw new InventoryError(
@@ -144,6 +146,12 @@ export async function adjustInventoryInTransaction(
       version: current.version + 1,
     },
   });
+  // A restock is exactly the moment availability climbs off zero; waiting
+  // alerts are notified inside this transaction so the emails and the stock
+  // movement commit together.
+  if (hasStockDelta && availableBefore === 0 && onHandAfter - current.reserved > 0) {
+    await queueRestockNotifications(tx, input.variantId, new Date());
+  }
   return {
     variantId: input.variantId,
     onHand: onHandAfter,
@@ -242,6 +250,7 @@ async function finalizeReservation(
 
   for (const reservation of reservations) {
     const current = locked.get(reservation.variantId)!;
+    const availableBefore = current.onHand - current.reserved;
     const reservedAfter = current.reserved - reservation.quantity;
     const onHandAfter =
       input.action === "COMMIT"
@@ -282,6 +291,16 @@ async function finalizeReservation(
       actorId: input.actorId ?? null,
       note: input.note ?? null,
     });
+    // Releasing a reservation returns units to availability, which is the other
+    // way a variant can come back in stock; a commit keeps availability flat and
+    // is deliberately not a restock.
+    if (
+      input.action === "RELEASE" &&
+      availableBefore === 0 &&
+      onHandAfter - reservedAfter > 0
+    ) {
+      await queueRestockNotifications(tx, reservation.variantId, now);
+    }
   }
   return true;
 }
@@ -360,12 +379,21 @@ export async function listAdminInventory(input: {
     .orderBy(desc(inventories.updatedAt), asc(productVariants.sku))
     .limit(limit)
     .offset(offset),
+    // The admin panel only walks pages, so the row count is capped one row past
+    // the requested page instead of scanning every matching row. Totals stay
+    // exact until the cap is reached and always report "another page exists".
     db
       .select({ count: count() })
-      .from(inventories)
-      .innerJoin(productVariants, eq(productVariants.id, inventories.variantId))
-      .innerJoin(products, eq(products.id, productVariants.productId))
-      .where(where),
+      .from(
+        db
+          .select({ variantId: inventories.variantId })
+          .from(inventories)
+          .innerJoin(productVariants, eq(productVariants.id, inventories.variantId))
+          .innerJoin(products, eq(products.id, productVariants.productId))
+          .where(where)
+          .limit(offset + limit + 1)
+          .as("bounded_inventory_page"),
+      ),
   ]);
   return { items, total: Number(totalRow?.count ?? 0) };
 }

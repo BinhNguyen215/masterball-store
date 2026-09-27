@@ -6,11 +6,15 @@ import { OrderStatusView } from "@/components/storefront/order-status-view";
 import { PageIntro } from "@/components/storefront/page-intro";
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
-import { getOrderByLookupToken } from "@/modules/orders";
+import { readPickupLocation } from "@/modules/checkout/pickup-location";
+import { getOrderByLookupToken, listOrderStatusHistory } from "@/modules/orders";
+import { readBankTransferConfig } from "@/modules/payments/bank-transfer";
 
 import {
+  buildOrderStatusExtras,
   isValidOrderLookupToken,
   mapOrderForStorefront,
+  type OrderStatusExtras,
 } from "../order-commerce";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -35,10 +39,17 @@ export default async function OrderStatusPage({
   const copy = getStorefrontCopy(locale);
 
   let order = null;
+  let extras: OrderStatusExtras = { bankTransfer: null, pickup: null };
   if (process.env.DATABASE_URL?.trim()) {
     const result = await getOrderByLookupToken(token);
     if (!result) notFound();
-    order = mapOrderForStorefront(result, copy.orders);
+    const history = await listOrderStatusHistory(result.id);
+    order = mapOrderForStorefront(result, copy.orders, history);
+    extras = buildOrderStatusExtras({
+      bankTransferConfig: readBankTransferConfig(),
+      order: result,
+      pickupLocation: readPickupLocation(),
+    });
   }
 
   return (
@@ -49,7 +60,13 @@ export default async function OrderStatusPage({
         title={copy.orders.lookupTitle}
       />
       <div className="section-inner">
-        <OrderStatusView copy={copy} locale={locale} order={order} />
+        <OrderStatusView
+          bankTransfer={extras.bankTransfer}
+          copy={copy}
+          locale={locale}
+          order={order}
+          pickup={extras.pickup}
+        />
         <p className="field-help">
           {copy.orders.tokenLookupPrompt}{" "}
           <Link href="/orders">{copy.orders.tokenLookupLink}</Link>.

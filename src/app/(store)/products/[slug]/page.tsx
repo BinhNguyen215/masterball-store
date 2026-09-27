@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ProductDetailView } from "@/components/storefront/product-detail-view";
+import { RecentlyViewedRecorder } from "@/components/storefront/recently-viewed-recorder";
 import { loadStorefrontProduct } from "@/components/storefront/storefront-data";
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
-import { addProductVariantToCart } from "./actions";
-import { getProductCartMessage } from "./product-commerce";
+import { addProductVariantToCart, recordProductView, submitProductReviewAction, subscribeRestockAlertAction } from "./actions";
+import {
+  getProductCartMessage,
+  getProductReviewMessage,
+  getRestockMessage,
+} from "./product-commerce";
 
 export async function generateMetadata({
   params,
@@ -42,13 +47,16 @@ export default async function ProductDetailPage({
   searchParams: Promise<{
     cart?: string | string[];
     error?: string | string[];
+    restock?: string | string[];
+    review?: string | string[];
   }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
   const locale = await readStorefrontLocale();
   const copy = getStorefrontCopy(locale);
-  const { configured, product } = await loadStorefrontProduct(slug, locale);
+  const { configured, product, recentlyViewed, related, reviews, shouldRecordView } =
+    await loadStorefrontProduct(slug, locale);
 
   if (configured && !product) {
     notFound();
@@ -63,7 +71,11 @@ export default async function ProductDetailPage({
             {
               "@type": "Product",
               description: product.description,
-              image: product.image ? [product.image.src] : undefined,
+              image: product.images.length
+                ? product.images.map((image) => image.src)
+                : product.image
+                  ? [product.image.src]
+                  : undefined,
               name: product.name,
               offers: {
                 "@type": "Offer",
@@ -122,7 +134,25 @@ export default async function ProductDetailPage({
         }
         cartMessage={getProductCartMessage(query, copy.product)}
         product={product}
+        recentlyViewed={recentlyViewed}
+        related={related}
+        restockAction={
+          product
+            ? subscribeRestockAlertAction.bind(null, product.slug)
+            : undefined
+        }
+        restockMessage={getRestockMessage(query, copy.restock)}
+        reviewAction={
+          product
+            ? submitProductReviewAction.bind(null, product.slug)
+            : undefined
+        }
+        reviewMessage={getProductReviewMessage(query, copy.reviews)}
+        reviews={reviews}
       />
+      {product && shouldRecordView ? (
+        <RecentlyViewedRecorder action={recordProductView} slug={product.slug} />
+      ) : null}
     </>
   );
 }

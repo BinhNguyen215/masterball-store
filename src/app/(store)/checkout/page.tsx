@@ -5,7 +5,9 @@ import { PageIntro } from "@/components/storefront/page-intro";
 import { getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
 import { CartError, getCart } from "@/modules/cart";
+import { readPickupLocation } from "@/modules/checkout/pickup-location";
 import { listVietnamProvinces } from "@/modules/checkout/vietnam-locations";
+import { readBankTransferConfig } from "@/modules/payments/bank-transfer";
 
 import { createCheckoutOrder } from "./actions";
 import { readCartToken } from "../cart/cart-cookie";
@@ -79,13 +81,16 @@ export default async function CheckoutPage({
       />
       <div className="section-inner">
         <CheckoutView
+          bankTransferAvailable={readBankTransferConfig() !== null}
           cartVersion={snapshot?.version}
           checkoutAction={enabled ? createCheckoutOrder : undefined}
           copy={copy}
+          coupons={getStorefrontCopy(locale).coupons}
           enabled={enabled}
           items={snapshot ? mapCartItems(snapshot, locale) : []}
           locale={locale}
           message={getCheckoutPageMessage(query, locale) ?? loadMessage}
+          pickup={readPickupLocation()}
           provinces={provinces}
           subtotalVnd={snapshot?.subtotalVnd ?? 0}
         />

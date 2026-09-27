@@ -7,7 +7,10 @@ import {
   type ProductFilterValues,
 } from "@/components/storefront/product-filter-form";
 import { ProductGrid } from "@/components/storefront/product-grid";
-import { loadStorefrontProductList } from "@/components/storefront/storefront-data";
+import {
+  loadStorefrontProductList,
+  loadStorefrontTags,
+} from "@/components/storefront/storefront-data";
 import { formatCopy, getStorefrontCopy } from "@/i18n";
 import { readStorefrontLocale } from "@/i18n/storefront-locale";
 
@@ -31,6 +34,7 @@ type ProductSearchParams = {
   query?: string | string[];
   set?: string | string[];
   sort?: string | string[];
+  tag?: string | string[];
   type?: string | string[];
 };
 
@@ -50,6 +54,7 @@ function readFilters(params: ProductSearchParams): ProductFilterValues {
     query: firstValue(params.query),
     set: firstValue(params.set),
     sort: firstValue(params.sort),
+    tag: firstValue(params.tag),
     type: firstValue(params.type),
   };
 }
@@ -71,6 +76,7 @@ export default async function ProductsPage({
     filters,
     locale,
   );
+  const tagOptions = await loadStorefrontTags();
   const page = Math.max(1, Number(filters.page) || 1);
   const pageHref = (targetPage: number) => {
     const query = new URLSearchParams();
@@ -95,6 +101,7 @@ export default async function ProductsPage({
           <h2>{catalog.filtersHeading}</h2>
           <ProductFilterForm
             copy={catalog.filters}
+            tagOptions={tagOptions}
             typeLabels={catalog.productType}
             values={filters}
           />

@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
+import { getRequestIpAddress } from "@/lib/request-ip";
 import { CartError, setCartItem } from "@/modules/cart";
+import { consumeGuestRateLimit } from "@/modules/orders";
 
 import { clearCartToken, readCartToken } from "./cart-cookie";
 import { parseRemoveCartForm, parseUpdateCartForm } from "./cart-commerce";
@@ -31,6 +34,16 @@ async function finishCartMutation(
   mutation: () => Promise<void>,
   success: "removed" | "updated",
 ): Promise<never> {
+  // The throttle reads the shared rate-limit table, so the database has to be
+  // configured before anything else touches it.
+  if (!process.env.DATABASE_URL?.trim()) redirect("/cart?error=service");
+
+  const allowed = await consumeGuestRateLimit({
+    clientKey: getRequestIpAddress(await headers()),
+    scope: "cart-mutation",
+  });
+  if (!allowed) redirect("/cart?error=throttled");
+
   let destination: string;
 
   try {

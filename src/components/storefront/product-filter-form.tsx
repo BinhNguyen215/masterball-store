@@ -13,18 +13,31 @@ export type ProductFilterValues = {
   query?: string;
   set?: string;
   sort?: string;
+  tag?: string;
   type?: string;
+};
+
+export type ProductFilterTagOption = {
+  name: string;
+  slug: string;
 };
 
 type ProductFilterFormProps = {
   copy: StorefrontCopy["catalog"]["filters"];
+  tagOptions: ProductFilterTagOption[];
   typeLabels: StorefrontCopy["catalog"]["productType"];
   values: ProductFilterValues;
 };
 
-export function ProductFilterForm({ copy, typeLabels, values }: ProductFilterFormProps) {
+export function ProductFilterForm({
+  copy,
+  tagOptions,
+  typeLabels,
+  values,
+}: ProductFilterFormProps) {
   const hasAdvancedFilters = Boolean(
     values.set ||
+      values.tag ||
       values.language ||
       values.condition ||
       values.minPrice ||
@@ -97,6 +110,21 @@ export function ProductFilterForm({ copy, typeLabels, values }: ProductFilterFor
               type="text"
             />
           </div>
+          {tagOptions.length ? (
+            <div className="field">
+              <label className="field-label" htmlFor="catalog-tag">
+                {copy.tag}
+              </label>
+              <select defaultValue={values.tag ?? ""} id="catalog-tag" name="tag">
+                <option value="">{copy.all}</option>
+                {tagOptions.map((tag) => (
+                  <option key={tag.slug} value={tag.slug}>
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="field">
             <label className="field-label" htmlFor="catalog-language">
               {copy.language}
