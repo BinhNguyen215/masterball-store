@@ -1,4 +1,5 @@
 import { chromeCopy } from "./copy/chrome";
+import { accountCopy } from "./copy/account";
 import { homeCopy } from "./copy/home";
 import { catalogCopy } from "./copy/catalog";
 import { couponsCopy } from "./copy/coupons";
@@ -17,6 +18,7 @@ export * from "./storefront";
 const storefrontCopy = {
   vi: {
     chrome: chromeCopy.vi,
+    account: accountCopy.vi,
     home: homeCopy.vi,
     catalog: catalogCopy.vi,
     coupons: couponsCopy.vi,
@@ -31,6 +33,7 @@ const storefrontCopy = {
   },
   en: {
     chrome: chromeCopy.en,
+    account: accountCopy.en,
     home: homeCopy.en,
     catalog: catalogCopy.en,
     coupons: couponsCopy.en,

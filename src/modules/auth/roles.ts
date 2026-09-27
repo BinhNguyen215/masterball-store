@@ -7,6 +7,15 @@ export const ADMIN_ROLES = [
 
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 
+/**
+ * Shopper role. Deliberately *not* part of `ADMIN_ROLES`: `isAdminRole` must
+ * keep rejecting it, and the customer auth instance sets it explicitly on
+ * sign-up (`input: false`), so no self-registration path can mint staff.
+ */
+export const CUSTOMER_ROLE = "CUSTOMER" as const;
+
+export type CustomerRole = typeof CUSTOMER_ROLE;
+
 export const CAPABILITIES = [
   "catalog.read",
   "catalog.write",
@@ -75,6 +84,14 @@ export const ROLE_CAPABILITIES: Readonly<Record<AdminRole, ReadonlySet<Capabilit
 
 export function isAdminRole(value: unknown): value is AdminRole {
   return typeof value === "string" && ADMIN_ROLES.includes(value as AdminRole);
+}
+
+/**
+ * True only for the shopper role. Kept next to `isAdminRole` so the two stay
+ * mutually exclusive by construction.
+ */
+export function isCustomerRole(value: unknown): value is CustomerRole {
+  return value === CUSTOMER_ROLE;
 }
 
 export function hasCapability(role: AdminRole, capability: Capability): boolean {

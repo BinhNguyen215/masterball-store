@@ -23,7 +23,9 @@ export const users = pgTable(
     email: text("email").notNull(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
-    role: text("role").default("ORDER_STAFF").notNull(),
+    // A row created without an explicit role is a shopper, never staff: the
+    // only two paths that mint staff pass OWNER/ORDER_STAFF on purpose.
+    role: text("role").default("CUSTOMER").notNull(),
     banned: boolean("banned").default(false).notNull(),
     banReason: text("ban_reason"),
     banExpires: utcTimestamp("ban_expires"),
@@ -38,7 +40,7 @@ export const users = pgTable(
     ),
     check(
       "user_role_check",
-      sql`${table.role} in ('OWNER', 'CATALOG_MANAGER', 'ORDER_STAFF', 'EVENT_EDITOR')`,
+      sql`${table.role} in ('OWNER', 'CATALOG_MANAGER', 'ORDER_STAFF', 'EVENT_EDITOR', 'CUSTOMER')`,
     ),
   ],
 );

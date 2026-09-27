@@ -15,6 +15,13 @@
       "when": 1790538821522,
       "tag": "0001_jazzy_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790542887338,
+      "tag": "0002_tense_blue_marvel",
+      "breakpoints": true
     }
   ]
 }

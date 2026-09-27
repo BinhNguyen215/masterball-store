@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, count, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
@@ -114,6 +114,9 @@ const GUEST_RATE_LIMITS = {
   "tournament-registration": { maxAttempts: 40, windowMs: 10 * 60_000 },
   "product-review": { maxAttempts: 10, windowMs: 10 * 60_000 },
   "restock-alert": { maxAttempts: 20, windowMs: 10 * 60_000 },
+  // Shopper sign-in/registration. Deliberately tight: these endpoints mint
+  // sessions, so credential stuffing is the threat, not a real shopper.
+  "customer-auth": { maxAttempts: 10, windowMs: 10 * 60_000 },
 } as const;
 
 export type GuestRateLimitScope = keyof typeof GUEST_RATE_LIMITS;
@@ -654,4 +657,128 @@ export async function listAdminOrders(input: {
       .where(where),
   ]);
   return { items, total: Number(totalRow?.count ?? 0) };
+}
+
+/** One order the signed-in shopper owns, with the lines and timeline it needs. */
+export type CustomerOrderRow = {
+  id: string;
+  orderNumber: string;
+  orderStatus: string;
+  paymentStatus: string;
+  fulfillmentStatus: string;
+  paymentMethod: string;
+  subtotalVnd: number;
+  shippingVnd: number;
+  discountVnd: number;
+  totalVnd: number;
+  trackingNumber: string | null;
+  customerNote: string | null;
+  createdAt: Date;
+  items: Array<{
+    id: string;
+    productTitle: string;
+    variantSku: string;
+    unitPriceVnd: number;
+    quantity: number;
+    lineTotalVnd: number;
+  }>;
+  history: Array<{
+    id: string;
+    dimension: string;
+    toStatus: string;
+    createdAt: Date;
+  }>;
+};
+
+/**
+ * The orders belonging to one customer, newest first. Ownership is the query
+ * itself — `orders.user_id = userId` — so a customer can never read another
+ * shopper's history, and the guest lookup token is not involved at all.
+ */
+export async function listCustomerOrders(
+  userId: string,
+  input: { limit?: number; offset?: number } = {},
+): Promise<{ items: CustomerOrderRow[]; total: number }> {
+  const limit = Math.max(1, Math.min(50, input.limit ?? 20));
+  const offset = Math.max(0, input.offset ?? 0);
+  const db = getDb();
+  const [rows, [totalRow]] = await Promise.all([
+    db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        orderStatus: orders.orderStatus,
+        paymentStatus: orders.paymentStatus,
+        fulfillmentStatus: orders.fulfillmentStatus,
+        paymentMethod: orders.paymentMethod,
+        subtotalVnd: orders.subtotalVnd,
+        shippingVnd: orders.shippingVnd,
+        discountVnd: orders.discountVnd,
+        totalVnd: orders.totalVnd,
+        trackingNumber: orders.trackingNumber,
+        customerNote: orders.customerNote,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.createdAt), desc(orders.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(orders)
+      .where(eq(orders.userId, userId)),
+  ]);
+
+  const orderIds = rows.map((row) => row.id);
+  const [lineRows, historyRows] = orderIds.length
+    ? await Promise.all([
+        db
+          .select({
+            id: orderItems.id,
+            orderId: orderItems.orderId,
+            productTitle: orderItems.productTitle,
+            variantSku: orderItems.variantSku,
+            unitPriceVnd: orderItems.unitPriceVnd,
+            quantity: orderItems.quantity,
+            lineTotalVnd: orderItems.lineTotalVnd,
+          })
+          .from(orderItems)
+          .where(inArray(orderItems.orderId, orderIds))
+          .orderBy(asc(orderItems.id)),
+        db
+          .select({
+            id: orderStatusHistory.id,
+            orderId: orderStatusHistory.orderId,
+            dimension: orderStatusHistory.dimension,
+            toStatus: orderStatusHistory.toStatus,
+            createdAt: orderStatusHistory.createdAt,
+          })
+          .from(orderStatusHistory)
+          .where(inArray(orderStatusHistory.orderId, orderIds))
+          .orderBy(asc(orderStatusHistory.createdAt), asc(orderStatusHistory.id)),
+      ])
+    : [[], []];
+
+  const linesByOrder = new Map<string, CustomerOrderRow["items"]>();
+  for (const { orderId, ...line } of lineRows) {
+    const lines = linesByOrder.get(orderId);
+    if (lines) lines.push(line);
+    else linesByOrder.set(orderId, [line]);
+  }
+  const historyByOrder = new Map<string, CustomerOrderRow["history"]>();
+  for (const { orderId, ...entry } of historyRows) {
+    const entries = historyByOrder.get(orderId);
+    if (entries) entries.push(entry);
+    else historyByOrder.set(orderId, [entry]);
+  }
+
+  return {
+    items: rows.map((row) => ({
+      ...row,
+      items: linesByOrder.get(row.id) ?? [],
+      history: historyByOrder.get(row.id) ?? [],
+    })),
+    total: Number(totalRow?.count ?? 0),
+  };
 }

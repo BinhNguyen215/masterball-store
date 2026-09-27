@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z, ZodError } from "zod";
 
 import { getRequestIpAddress } from "@/lib/request-ip";
+import { readCustomerSession } from "@/modules/auth/customer-session";
 import { CartError, createCart, getCart, setCartItem } from "@/modules/cart";
 import { getStorefrontProductBySlug } from "@/modules/catalog/catalog-queries";
 import { RestockAlertError, subscribeToRestock } from "@/modules/inventory";
@@ -90,7 +91,11 @@ export async function addProductVariantToCart(
     }
 
     if (needsNewCart) {
-      const cart = await createCart();
+      // A signed-in shopper's cart is owned from the start, so checkout can
+      // attach the order to their account. Guests are unchanged: no session,
+      // no `user_id`, identity stays the signed cart token.
+      const customer = await readCustomerSession();
+      const cart = await createCart({ userId: customer?.id ?? null });
       token = cart.token;
       version = cart.version;
       await writeCartToken(cart.token, cart.expiresAt);
