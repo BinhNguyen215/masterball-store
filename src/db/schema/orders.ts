@@ -41,7 +41,11 @@ export const fulfillmentStatusEnum = pgEnum("fulfillment_status", [
   "RETURNED",
 ]);
 
-export const paymentMethodEnum = pgEnum("payment_method", ["COD", "VNPAY"]);
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "COD",
+  "VNPAY",
+  "BANK_TRANSFER",
+]);
 
 export const orders = pgTable(
   "orders",
@@ -63,7 +67,11 @@ export const orders = pgTable(
     currency: text("currency").default("VND").notNull(),
     subtotalVnd: integer("subtotal_vnd").notNull(),
     shippingVnd: integer("shipping_vnd").notNull(),
+    discountVnd: integer("discount_vnd").default(0).notNull(),
     totalVnd: integer("total_vnd").notNull(),
+    // Deliberately not a foreign key: `coupons` imports this module, and a
+    // coupon is disabled rather than deleted, so the reference stays valid.
+    couponId: uuid("coupon_id"),
     customerNote: text("customer_note"),
     internalNote: text("internal_note"),
     trackingNumber: text("tracking_number"),
@@ -97,9 +105,34 @@ export const orders = pgTable(
     check("orders_subtotal_check", sql`${table.subtotalVnd} >= 0`),
     check("orders_shipping_check", sql`${table.shippingVnd} >= 0`),
     check("orders_version_check", sql`${table.version} > 0`),
+    check("orders_discount_check", sql`${table.discountVnd} >= 0`),
     check(
       "orders_total_check",
-      sql`${table.totalVnd} = ${table.subtotalVnd} + ${table.shippingVnd}`,
+      sql`${table.totalVnd} = ${table.subtotalVnd} + ${table.shippingVnd} - ${table.discountVnd}`,
+    ),
+    check(
+      "orders_discount_limit_check",
+      sql`${table.discountVnd} <= ${table.subtotalVnd} + ${table.shippingVnd}`,
+    ),
+    check(
+      "orders_coupon_check",
+      sql`${table.couponId} is null or ${table.discountVnd} > 0`,
+    ),
+    check(
+      "orders_order_number_check",
+      sql`${table.orderNumber} ~ '^MB-[0-9A-F]{20}$'`,
+    ),
+    check(
+      "orders_vnpay_reservation_check",
+      sql`${table.paymentMethod} <> 'VNPAY' or ${table.reservationExpiresAt} is not null`,
+    ),
+    check(
+      "orders_cancelled_at_check",
+      sql`${table.orderStatus} <> 'CANCELLED' or ${table.cancelledAt} is not null`,
+    ),
+    check(
+      "orders_completed_at_check",
+      sql`${table.orderStatus} <> 'COMPLETED' or ${table.completedAt} is not null`,
     ),
     index("orders_status_created_idx").on(table.orderStatus, table.createdAt),
     index("orders_payment_status_idx").on(
@@ -107,6 +140,12 @@ export const orders = pgTable(
       table.createdAt,
     ),
     index("orders_user_created_idx").on(table.userId, table.createdAt),
+    index("orders_created_idx").on(table.createdAt, table.id),
+    index("orders_reservation_expiry_idx")
+      .on(table.reservationExpiresAt)
+      .where(
+        sql`${table.orderStatus} = 'PENDING_PAYMENT' and ${table.paymentStatus} = 'PENDING'`,
+      ),
   ],
 );
 

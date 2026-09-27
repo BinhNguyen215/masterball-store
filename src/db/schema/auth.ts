@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const utcTimestamp = (name: string) =>
@@ -31,6 +32,10 @@ export const users = pgTable(
   },
   (table) => [
     unique("user_email_unique").on(table.email),
+    uniqueIndex("user_email_lower_unique").using(
+      "btree",
+      sql`lower(${table.email})`,
+    ),
     check(
       "user_role_check",
       sql`${table.role} in ('OWNER', 'CATALOG_MANAGER', 'ORDER_STAFF', 'EVENT_EDITOR')`,

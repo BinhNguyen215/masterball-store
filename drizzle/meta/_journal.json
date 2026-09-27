@@ -8,6 +8,13 @@
       "when": 1789389983950,
       "tag": "0000_commerce-foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790538821522,
+      "tag": "0001_jazzy_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

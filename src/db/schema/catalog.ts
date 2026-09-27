@@ -106,7 +106,26 @@ export const products = pgTable(
       table.publishedAt,
     ),
     index("products_game_set_idx").on(table.gameId, table.setId),
+    index("products_admin_updated_idx").on(table.updatedAt, table.id),
+    index("products_active_slug_idx")
+      .on(table.slug)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index("products_active_featured_idx")
+      .on(table.featured, table.publishedAt, table.id)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index("products_title_trgm_idx").using(
+      "gin",
+      sql`${table.title} gin_trgm_ops`,
+    ),
+    index("products_slug_trgm_idx").using(
+      "gin",
+      sql`${table.slug} gin_trgm_ops`,
+    ),
     check("products_version_check", sql`${table.version} > 0`),
+    check(
+      "products_active_published_check",
+      sql`${table.status} <> 'ACTIVE' or ${table.publishedAt} is not null`,
+    ),
   ],
 );
 
@@ -138,6 +157,10 @@ export const productVariants = pgTable(
       .notNull(),
   },
   (table) => [
+    unique("product_variants_product_id_id_unique").on(
+      table.productId,
+      table.id,
+    ),
     check("product_variants_price_vnd_check", sql`${table.priceVnd} >= 0`),
     check("product_variants_weight_gram_check", sql`${table.weightGram} >= 0`),
     check("product_variants_version_check", sql`${table.version} > 0`),
@@ -149,6 +172,10 @@ export const productVariants = pgTable(
       table.language,
       table.condition,
       table.priceVnd,
+    ),
+    index("product_variants_sku_trgm_idx").using(
+      "gin",
+      sql`${table.sku} gin_trgm_ops`,
     ),
   ],
 );

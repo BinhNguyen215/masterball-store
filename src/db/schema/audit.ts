@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
@@ -26,5 +27,14 @@ export const auditLogs = pgTable(
       table.createdAt,
     ),
     index("audit_logs_actor_created_idx").on(table.actorId, table.createdAt),
+    index("audit_logs_created_idx").on(table.createdAt, table.id),
+    index("audit_logs_action_trgm_idx").using(
+      "gin",
+      sql`${table.action} gin_trgm_ops`,
+    ),
+    index("audit_logs_subject_id_trgm_idx").using(
+      "gin",
+      sql`${table.subjectId} gin_trgm_ops`,
+    ),
   ],
 );

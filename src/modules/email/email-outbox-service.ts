@@ -1,4 +1,4 @@
-import { and, asc, eq, lt, lte, or } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, lte, or } from "drizzle-orm";
 
 import { getDb, type AppTransaction } from "@/db";
 import { emailOutbox } from "@/db/schema";
@@ -64,13 +64,12 @@ export async function processEmailOutbox(
       await tx
         .update(emailOutbox)
         .set({ status: "PROCESSING", updatedAt: now })
-        .where(eq(emailOutbox.id, rows[0].id));
-      for (const row of rows.slice(1)) {
-        await tx
-          .update(emailOutbox)
-          .set({ status: "PROCESSING", updatedAt: now })
-          .where(eq(emailOutbox.id, row.id));
-      }
+        .where(
+          inArray(
+            emailOutbox.id,
+            rows.map((row) => row.id),
+          ),
+        );
     }
     return rows;
   });
@@ -100,7 +99,7 @@ export async function processEmailOutbox(
           status: terminal ? "FAILED" : "PENDING",
           attemptCount,
           lastError: error instanceof Error ? error.message.slice(0, 1000) : "Unknown email error",
-          nextAttemptAt: new Date(Date.now() + delayMinutes * 60_000),
+          nextAttemptAt: new Date(now.getTime() + delayMinutes * 60_000),
           updatedAt: new Date(),
         })
         .where(

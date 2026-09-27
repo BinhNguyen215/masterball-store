@@ -52,5 +52,8 @@ export const emailOutbox = pgTable(
     check("email_outbox_attempt_count_check", sql`${table.attemptCount} >= 0`),
     index("email_outbox_delivery_idx").on(table.status, table.nextAttemptAt),
     index("email_outbox_order_id_idx").on(table.orderId),
+    index("email_outbox_processing_idx")
+      .on(table.updatedAt)
+      .where(sql`${table.status} = 'PROCESSING'`),
   ],
 );

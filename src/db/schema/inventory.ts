@@ -53,6 +53,10 @@ export const inventories = pgTable(
     check("inventories_reorder_point_check", sql`${table.reorderPoint} >= 0`),
     check("inventories_version_check", sql`${table.version} > 0`),
     index("inventories_availability_idx").on(table.onHand, table.reserved),
+    index("inventories_available_expr_idx").on(
+      sql`(${table.onHand} - ${table.reserved})`,
+    ),
+    index("inventories_updated_idx").on(table.updatedAt, table.variantId),
   ],
 );
 
@@ -81,6 +85,14 @@ export const inventoryReservations = pgTable(
       table.variantId,
     ),
     check("inventory_reservations_quantity_check", sql`${table.quantity} > 0`),
+    check(
+      "inventory_reservations_released_check",
+      sql`${table.status} <> 'RELEASED' or ${table.releasedAt} is not null`,
+    ),
+    check(
+      "inventory_reservations_committed_check",
+      sql`${table.status} <> 'COMMITTED' or ${table.committedAt} is not null`,
+    ),
     index("inventory_reservations_order_status_idx").on(
       table.orderId,
       table.status,
@@ -134,5 +146,47 @@ export const inventoryMovements = pgTable(
       table.referenceType,
       table.referenceId,
     ),
+  ],
+);
+
+export const restockAlertStatusEnum = pgEnum("restock_alert_status", [
+  "PENDING",
+  "NOTIFIED",
+  "CANCELLED",
+]);
+
+/**
+ * "Tell me when this variant is back" requests. One row per address per variant;
+ * the notification job flips the row to NOTIFIED instead of deleting it, so a
+ * customer is never emailed twice for the same restock.
+ */
+export const restockAlerts = pgTable(
+  "restock_alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "restrict" }),
+    email: text("email").notNull(),
+    status: restockAlertStatusEnum("status").default("PENDING").notNull(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("restock_alerts_variant_email_unique").on(table.variantId, table.email),
+    check(
+      "restock_alerts_email_check",
+      sql`${table.email} = lower(${table.email}) and ${table.email} ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'`,
+    ),
+    check(
+      "restock_alerts_notified_check",
+      sql`${table.status} <> 'NOTIFIED' or ${table.notifiedAt} is not null`,
+    ),
+    index("restock_alerts_status_created_idx").on(table.status, table.createdAt),
   ],
 );

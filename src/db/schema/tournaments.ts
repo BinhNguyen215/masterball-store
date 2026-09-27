@@ -95,6 +95,10 @@ export const tournaments = pgTable(
     check("tournaments_capacity_check", sql`${table.capacity} is null or ${table.capacity} > 0`),
     check("tournaments_fee_check", sql`${table.feeVnd} >= 0`),
     check("tournaments_version_check", sql`${table.version} > 0`),
+    check(
+      "tournaments_cancelled_at_check",
+      sql`not ${table.cancelled} or ${table.cancelledAt} is not null`,
+    ),
     index("tournaments_public_starts_idx").on(
       table.publicationStatus,
       table.startsAt,
@@ -103,6 +107,88 @@ export const tournaments = pgTable(
     index("tournaments_scheduled_publish_idx").on(
       table.publicationStatus,
       table.scheduledPublishAt,
+    ),
+    index("tournaments_updated_idx").on(table.updatedAt, table.id),
+    index("tournaments_title_trgm_idx").using(
+      "gin",
+      sql`${table.title} gin_trgm_ops`,
+    ),
+  ],
+);
+
+export const tournamentRegistrationStatusEnum = pgEnum(
+  "tournament_registration_status",
+  ["REGISTERED", "WAITLISTED", "CHECKED_IN", "CANCELLED"],
+);
+
+export const tournamentRegistrationPaymentStatusEnum = pgEnum(
+  "tournament_registration_payment_status",
+  ["UNPAID", "PAID", "WAIVED"],
+);
+
+/**
+ * A seat in a tournament. Capacity is enforced transactionally against the
+ * number of non-cancelled rows, so `WAITLISTED` is a real queue position rather
+ * than a rejection; a phone number can hold one seat per tournament.
+ */
+export const tournamentRegistrations = pgTable(
+  "tournament_registrations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tournamentId: uuid("tournament_id")
+      .notNull()
+      .references(() => tournaments.id, { onDelete: "restrict" }),
+    fullName: text("full_name").notNull(),
+    phone: text("phone").notNull(),
+    email: text("email"),
+    note: text("note"),
+    status: tournamentRegistrationStatusEnum("status")
+      .default("REGISTERED")
+      .notNull(),
+    paymentStatus: tournamentRegistrationPaymentStatusEnum("payment_status")
+      .default("UNPAID")
+      .notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true, mode: "date" }),
+    checkedInAt: timestamp("checked_in_at", { withTimezone: true, mode: "date" }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true, mode: "date" }),
+    version: integer("version").default(1).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("tournament_registrations_tournament_phone_unique").on(
+      table.tournamentId,
+      table.phone,
+    ),
+    check(
+      "tournament_registrations_name_check",
+      sql`length(btrim(${table.fullName})) between 2 and 120`,
+    ),
+    check(
+      "tournament_registrations_phone_check",
+      sql`${table.phone} ~ '^[0-9+][0-9 .-]{7,19}$'`,
+    ),
+    check(
+      "tournament_registrations_checked_in_check",
+      sql`${table.status} <> 'CHECKED_IN' or ${table.checkedInAt} is not null`,
+    ),
+    check(
+      "tournament_registrations_cancelled_check",
+      sql`${table.status} <> 'CANCELLED' or ${table.cancelledAt} is not null`,
+    ),
+    check(
+      "tournament_registrations_paid_check",
+      sql`${table.paymentStatus} <> 'PAID' or ${table.paidAt} is not null`,
+    ),
+    check("tournament_registrations_version_check", sql`${table.version} > 0`),
+    index("tournament_registrations_tournament_status_idx").on(
+      table.tournamentId,
+      table.status,
+      table.createdAt,
     ),
   ],
 );

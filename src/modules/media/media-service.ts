@@ -14,6 +14,12 @@ import { MEDIA_MAX_IMAGE_BYTES, validateProductMedia } from "./media-validation"
 const uuid = z.string().uuid();
 const altText = z.string().trim().min(1).max(500);
 
+/**
+ * A gallery is a bounded reference list: cap it so a product with runaway
+ * assets cannot stream an unbounded payload into the admin API response.
+ */
+const MEDIA_ASSETS_PER_PRODUCT_LIMIT = 200;
+
 export class MediaManagementError extends Error {
   constructor(
     message: string,
@@ -229,7 +235,8 @@ export async function listProductMedia(
     .select()
     .from(mediaAssets)
     .where(eq(mediaAssets.productId, parsedProductId))
-    .orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id));
+    .orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id))
+    .limit(MEDIA_ASSETS_PER_PRODUCT_LIMIT);
   return rows.map((row) => ({
     ...row,
     isPrimary: row.sortOrder === 0,

@@ -2,8 +2,13 @@ import { and, asc, count, desc, eq, gt, ilike, lte, or, sql, type SQL } from "dr
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { games, tournaments } from "@/db/schema";
+import { games, tournamentPublicationStatusEnum, tournaments } from "@/db/schema";
 import { appendAuditLog } from "@/modules/audit";
+
+const publicationStatusFilter = z.enum(tournamentPublicationStatusEnum.enumValues);
+
+/** Sitemaps are capped so one runaway table cannot build an unbounded document. */
+const SITEMAP_ENTRY_LIMIT = 5_000;
 
 const safeHttpUrl = z
   .string()
@@ -314,7 +319,8 @@ export async function listPublishedTournamentSitemapEntries() {
     .select({ slug: tournaments.slug, updatedAt: tournaments.updatedAt })
     .from(tournaments)
     .where(eq(tournaments.publicationStatus, "PUBLISHED"))
-    .orderBy(asc(tournaments.slug));
+    .orderBy(asc(tournaments.slug))
+    .limit(SITEMAP_ENTRY_LIMIT);
 }
 
 export async function listAdminTournaments(input: {
@@ -337,24 +343,40 @@ export async function listAdminTournaments(input: {
   if (input.status === "CANCELLED") {
     conditions.push(eq(tournaments.cancelled, true));
   } else if (input.status) {
-    conditions.push(sql`${tournaments.publicationStatus}::text = ${input.status}`);
+    const requestedStatus = publicationStatusFilter.safeParse(input.status);
+    // Compare the enum column itself so `tournaments_public_starts_idx` stays
+    // usable, and keep unknown filters matching nothing instead of failing the
+    // enum cast the old `::text` comparison tolerated.
+    conditions.push(
+      requestedStatus.success
+        ? eq(tournaments.publicationStatus, requestedStatus.data)
+        : sql`false`,
+    );
   }
   const where = conditions.length ? and(...conditions) : undefined;
   const db = getDb();
   const [items, [totalRow]] = await Promise.all([
     db
-    .select({ tournament: tournaments, gameName: games.name })
-    .from(tournaments)
-    .innerJoin(games, eq(games.id, tournaments.gameId))
-    .where(where)
-    .orderBy(desc(tournaments.updatedAt), desc(tournaments.id))
-    .limit(limit)
-    .offset(offset),
-    db
-      .select({ count: count() })
+      .select({ tournament: tournaments, gameName: games.name })
       .from(tournaments)
       .innerJoin(games, eq(games.id, tournaments.gameId))
-      .where(where),
+      .where(where)
+      .orderBy(desc(tournaments.updatedAt), desc(tournaments.id))
+      .limit(limit)
+      .offset(offset),
+    // Bounded counterpart of the old full-scan count: one row past the
+    // requested page, which is all the panel needs to paginate.
+    db
+      .select({ count: count() })
+      .from(
+        db
+          .select({ id: tournaments.id })
+          .from(tournaments)
+          .innerJoin(games, eq(games.id, tournaments.gameId))
+          .where(where)
+          .limit(offset + limit + 1)
+          .as("bounded_tournament_page"),
+      ),
   ]);
   return { items, total: Number(totalRow?.count ?? 0) };
 }

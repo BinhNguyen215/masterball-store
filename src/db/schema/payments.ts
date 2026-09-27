@@ -51,7 +51,20 @@ export const payments = pgTable(
     ),
     check("payments_currency_check", sql`${table.currency} = 'VND'`),
     check("payments_amount_check", sql`${table.amountVnd} >= 0`),
+    check(
+      "payments_paid_at_check",
+      sql`${table.status} <> 'PAID' or ${table.paidAt} is not null`,
+    ),
     index("payments_status_created_idx").on(table.status, table.createdAt),
+    index("payments_created_idx").on(table.createdAt, table.id),
+    index("payments_reference_trgm_idx").using(
+      "gin",
+      sql`${table.providerReference} gin_trgm_ops`,
+    ),
+    index("payments_transaction_trgm_idx").using(
+      "gin",
+      sql`${table.providerTransactionId} gin_trgm_ops`,
+    ),
   ],
 );
 

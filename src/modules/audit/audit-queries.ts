@@ -40,7 +40,18 @@ export async function listAuditLogs(input: unknown = {}) {
       .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
       .limit(query.limit)
       .offset(query.offset),
-    db.select({ count: count() }).from(auditLogs).where(where),
+    // Counted one row past the requested page: the audit table only grows, and
+    // a full count over it costs a scan the panel never reads.
+    db
+      .select({ count: count() })
+      .from(
+        db
+          .select({ id: auditLogs.id })
+          .from(auditLogs)
+          .where(where)
+          .limit(query.offset + query.limit + 1)
+          .as("bounded_audit_page"),
+      ),
   ]);
   return { items, total: Number(totalRow?.count ?? 0) };
 }

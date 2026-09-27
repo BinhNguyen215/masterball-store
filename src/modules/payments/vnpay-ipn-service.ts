@@ -9,6 +9,7 @@ import {
   orderStatusHistory,
   paymentEvents,
   payments,
+  paymentStatusEnum,
 } from "@/db/schema";
 import { appendAuditLog } from "@/modules/audit";
 import { enqueueEmail } from "@/modules/email";
@@ -184,6 +185,7 @@ async function applyTrustedVnpayResult(
             orderStatus: "CANCELLED",
             paymentStatus: "FAILED",
             cancelledAt: now,
+            version: sql`${orders.version} + 1`,
             updatedAt: now,
           })
           .where(eq(orders.id, order.id));
@@ -235,7 +237,11 @@ async function applyTrustedVnpayResult(
         .where(eq(payments.id, payment.id));
       await tx
         .update(orders)
-        .set({ paymentStatus: "MANUAL_REVIEW", updatedAt: now })
+        .set({
+          paymentStatus: "MANUAL_REVIEW",
+          version: sql`${orders.version} + 1`,
+          updatedAt: now,
+        })
         .where(eq(orders.id, order.id));
       await tx.insert(orderStatusHistory).values({
         orderId: order.id,
@@ -277,6 +283,7 @@ async function applyTrustedVnpayResult(
       .set({
         orderStatus: "CONFIRMED",
         paymentStatus: "PAID",
+        version: sql`${orders.version} + 1`,
         updatedAt: now,
       })
       .where(eq(orders.id, order.id));
@@ -436,7 +443,15 @@ export async function listAdminPayments(input: {
       ilike(payments.providerTransactionId, pattern),
     )!);
   }
-  if (input.status) conditions.push(sql`${payments.status}::text = ${input.status}`);
+  if (input.status) {
+    // The value arrives from the URL, so it is validated against the enum
+    // before the cast: an unknown value must match nothing, not raise.
+    conditions.push(
+      (paymentStatusEnum.enumValues as readonly string[]).includes(input.status)
+        ? sql`${payments.status} = ${input.status}::payment_status`
+        : sql`false`,
+    );
+  }
   const where = conditions.length ? and(...conditions) : undefined;
   const db = getDb();
   const [items, [totalRow]] = await Promise.all([
